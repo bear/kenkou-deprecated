@@ -23,6 +23,7 @@ Example kenkou.cfg file:
 }
 
 TODO
+  * make the config file handle multiple sites
   * copy some parsing code from parsedatetime so the period value can be more free form, e.g.
     5m, 5 min, 5 minutes, 3 days 2 min and so on
   * make the success determination more data driven such that it could be any result code or
