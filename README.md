@@ -7,8 +7,11 @@ While you can run it from the command line, currently I have made
 it so that the options for posting an failure event come from the
 configuration file.
 
+Configuration
+-------------
 Example kenkou.cfg file:
 
+```json
 { "debug": true,
   "url":  "http://127.0.0.1:8080",
   "period":  "5m",
@@ -21,8 +24,10 @@ Example kenkou.cfg file:
                         }
             }
 }
+```
 
 TODO
+----
   * make the config file handle multiple sites
   * copy some parsing code from parsedatetime so the period value can be more free form, e.g.
     5m, 5 min, 5 minutes, 3 days 2 min and so on
