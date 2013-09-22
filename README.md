@@ -54,10 +54,12 @@ Example kenkou.cfg file:
 The namespace for the Redis option is used to build both the key used to retrieve the
 list of urls and also the keys used to store the last results.
 
+```
   kenkou:urls_to_check        ["production"]
   kenkou:url.production       ["main"]
   kenkou:url.produciton.main  { "url": "http://127.0.0.1" }
   kenkou:result.URL      200
+```
 
 The file option allows for multiple sites to be grouped, for example:
 
@@ -66,13 +68,6 @@ The file option allows for multiple sites to be grouped, for example:
   "production": {
     "main":    { "url": "http://127.0.0.1" },
     "example": { "url": "http://example.com" }
-  ]
+  }
 }
 ```
-
-TODO
-----
-  * copy some parsing code from parsedatetime so the period value can be more free form, e.g.
-    5m, 5 min, 5 minutes, 3 days 2 min and so on
-  * make the success determination more data driven such that it could be any result code or
-    even a regex compare with something in the response body
