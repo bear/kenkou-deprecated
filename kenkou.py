@@ -44,6 +44,15 @@ Usage
 
 log = logging.getLogger(_ourName)
 
+def flatten(source):
+    result     = {}
+    namespaces = []
+    for ns in source:
+        namespaces.append(ns)
+        for site in source[ns]:
+            key = '%s.%s' % (ns, site)
+            result[key] = source[ns][site]
+    return result, namespaces
 
 def pagerDuty(payload):
     if 'method' in config.options.pagerduty:
@@ -115,8 +124,8 @@ def handleEvent(sitename, sitedata, status, message):
         elif item == 'pagerduty':
             pagerDuty(body)
 
-def check(ns, sitename, sitedata):
-    log.debug('checking sites for %s' % ns)
+def check(sitename, sitedata):
+    log.debug('checking %s' % sitename)
     if 'url' in sitedata:
         url = sitedata['url']
 
@@ -146,16 +155,35 @@ if __name__ == '__main__':
         log.error('URLs configuration item is required, exiting')
         sys.exit(2)
 
+    urls       = {}
+    namespaces = []
     for k in config.options.urls:
         if k == 'file':
             try:
-                urls = json.loads(' '.join(open(config.options.urls[k], 'r').readlines()))
-                for ns in urls:
-                    for key in urls[ns]:
-                        check(ns, key, urls[ns][key])
+                fUrls = json.loads(' '.join(open(config.options.urls[k], 'r').readlines()))
+                for key in fUrls:
+                    urls[key] = fUrls[key]
             except:
                 log.exception('unable to load url list from %s' % config.options.urls[k])
         elif k == 'redis':
             log.info('need to do something here')
         else:
             log.error('Unknown URL entry [%s]' % k)
+
+    urls, namespaces = flatten(urls)
+
+    if len(config.args) > 0:
+        keys = []
+        for s in config.args:
+            if s in urls:
+                keys.append(s)
+            else:
+                if s in namespaces: 
+                    for k in urls.keys():
+                        if k.startswith(s):
+                            keys.append(k)
+    else:
+        keys = urls.keys()
+
+    for key in keys:
+        check(key, urls[key])
