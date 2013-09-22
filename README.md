@@ -9,18 +9,18 @@ Usage
 -----
 
 ```
-python kenkou.py [-c|--config FILENAME] [-d|--debug] [-l|--logpath LOGFILE]
+python kenkou.py [-c|--config FILENAME] [-d|--debug] [-l|--logfile LOGFILE]
 
 Where:
     -c --config         Configuration file (json format)
     -d --debug          Turn on debug logging
                         default: False
-    -l --logpath        Path where the log file output is written
+    -l --logfile        Filename to write the log output
                         default: None
 
 Configuration
 -------------
-Example kenkou.json file:
+Example kenkou.cfg file:
 
 ```
 { "debug": true,
@@ -39,12 +39,13 @@ Example kenkou.json file:
     "recipients": ["email@example.com"]
   },
   "onfail": [ "postageapp" ],
+  "redis": { "host": "127.0.0.1",
+             "port": 6379,
+             "db": 0,
+             "namespace": "kenkou"
+  }
   "urls": {
-    "file": "urls_to_check.json",
-    "redis": { "host": "127.0.0.1",
-               "port": 6379,
-               "namespace": "kenkou"
-    }
+    "file": "urls_to_check.cfg",
   }
 }
 ```
@@ -52,16 +53,18 @@ Example kenkou.json file:
 The namespace for the Redis option is used to build both the key used to retrieve the
 list of urls and also the keys used to store the last results.
 
-  kenkou:urls_to_check = []
-  kenkou:result.URL    = 200
+  kenkou:urls_to_check        ["production"]
+  kenkou:url.production       ["main"]
+  kenkou:url.produciton.main  { "url": "http://127.0.0.1" }
+  kenkou:result.URL      200
 
 The file option allows for multiple sites to be grouped, for example:
 
 ```
 {
-  "production": [
-    "http://127.0.0.1",
-    "http://example.com"
+  "production": {
+    "main":    { "url": http://127.0.0.1" },
+    "example": { "url": "http://example.com" }
   ]
 }
 ```

@@ -36,7 +36,7 @@ Usage
     -c --config         Configuration file (json format)
     -d --debug          Turn on debug logging
                         default: False
-    -l --logpath        Path where the log file output is written
+    -l --logfile        Filename to write the log output
                         default: None
 """
 
@@ -44,19 +44,19 @@ Usage
 log = logging.getLogger(_ourName)
 
 
-def pagerDuty(cfg, payload):
-    if 'method' in options.onfail:
-        method = options.onfail['method']
+def pagerDuty(payload):
+    if 'method' in config.options.pagerduty:
+        method = config.options.pagerduty['method']
     else:
         method = 'POST'
-    if 'params' in options.onfail:
-        params = options.onfail['params']
+    if 'params' in config.options.pagerduty:
+        params = config.options.pagerduty['params']
     else:
         params = {}
 
     log.info('sending trigger request')
     try:
-        req = urllib2.Request(options.onfail['url'])
+        req = urllib2.Request(config.options.pagerduty'url'])
         req.add_data(json.dumps(params))
         req.add_header('Content-Type', 'application/json')
         res = urllib2.urlopen(req)
@@ -70,9 +70,9 @@ def pagerDuty(cfg, payload):
         log.exception('Error during failure reporting, exiting')
 
 def postageApp(body):
-    payload = { "api_key":   "HRo8SuktnubH4XErey2l0zUEMQXGrYCH",
+    payload = { "api_key":   config.options.postageapp['api_key'],
                 "uid":       str(uuid.uuid4()),
-                "arguments": { "recipients": ["ops@andyet.net"],
+                "arguments": { "recipients": config.options.recipients,
                                "headers":    { "subject": msg.get('Subject'),
                                                "from":    msg.get('From'),
                                              },
@@ -85,16 +85,57 @@ def postageApp(body):
 
     return r.status
 
-def check(urls):
-    log.debug('checking %d urls' % len(urls))
-    for url in urls:
-        log.info('checking %s' % url)
-        r = requests.get(url)
-        print r
+_exception = """Kenkou has discovered an issue with the site %(url)s
+The result from the attempt to reach the site is:
+%(message)s
+"""
+_error    =  """Kenkou has discovered an issue with the site %(url)s
+The result from the attempt to reach the site is: %(status)s
+The body of the request is:
+%(message)s
+"""
+
+def handleEvent(sitename, sitedata, status, message):
+    data = { 'sitename': sitename,
+             'url':      sitedata['url'],
+             'status':   status,
+             'message':  message
+           }
+    if status is None:
+        body = _exception % data
+    else:
+        body = _error % data
+
+    for item in config.options.onfail:
+        if item == 'postageapp':
+            log.info('event sent to PostageApp: %s' % postageApp(body))
+        elif item == 'pagerduty':
+            pagerDuty(body)
+
+def check(ns, sitename, sitedata):
+    log.debug('checking sites for %s' % ns)
+    if 'url' in sitedata:
+        url = sitedata['url']
+
+        try:
+            r = requests.get(url)
+            log.info('site %s (%s) responded with %s' % (sitename, url, r.status_code))
+
+            if r.status_code != 200:
+                handleEvent(sitename, sitedata, r.status_code, r.text)
+
+        except (requests.exceptions.RequestException, 
+                requests.exceptions.ConnectionError,
+                requests.exceptions.HTTPError,
+                requests.exceptions.URLRequired,
+                requests.exceptions.TooManyRedirects) as e:
+            log.error('ERROR for %s (%s): %s' % (sitename, url, e.message))
+            handleEvent(sitename, sitedata, None, e.message)
+
 
 if __name__ == '__main__':
     config = bConfig(filename='%s.cfg' % _ourName)
-    bLogs(_ourName, echo=config.options.echo, debug=config.options.debug, logpath=config.options.logpath)
+    bLogs(_ourName, echo=config.options.echo, debug=config.options.debug, logfile=config.options.logfile)
 
     log.info('Starting')
 
@@ -107,8 +148,11 @@ if __name__ == '__main__':
             try:
                 urls = json.loads(' '.join(open(config.options.urls[k], 'r').readlines()))
                 for ns in urls:
-                    check(urls[ns])
+                    for key in urls[ns]:
+                        check(ns, key, urls[ns][key])
             except:
                 log.exception('unable to load url list from %s' % config.options.urls[k])
+        elif k == 'redis':
+            log.info('need to do something here')
         else:
             log.error('Unknown URL entry [%s]' % k)
