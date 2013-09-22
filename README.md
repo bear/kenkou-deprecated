@@ -55,10 +55,10 @@ The namespace for the Redis option is used to build both the key used to retriev
 list of urls and also the keys used to store the last results.
 
 ```
-  kenkou:urls_to_check        ["production"]
-  kenkou:url.production       ["main"]
-  kenkou:url.produciton.main  { "url": "http://127.0.0.1" }
-  kenkou:result.URL      200
+  kenkou:urls_to_check            [ "production" ]
+  kenkou:url.production           [ "main" ]
+  kenkou:url.production.main      { "url": "http://127.0.0.1" }
+  kenkou:result.production.main   200
 ```
 
 The file option allows for multiple sites to be grouped, for example:
