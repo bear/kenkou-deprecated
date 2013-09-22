@@ -1,34 +1,73 @@
 kenkou
 ======
 
-A small python tool to check that an http resource is alive
+A python tool to check that an http resource is alive.
 
-While you can run it from the command line, currently I have made
-it so that the options for posting an failure event come from the
-configuration file.
+Designed to be run from a cronjob as often as you want to check the sites.
+
+Usage
+-----
+
+```
+python kenkou.py [-c|--config FILENAME] [-d|--debug] [-l|--logpath LOGFILE]
+
+Where:
+    -c --config         Configuration file (json format)
+    -d --debug          Turn on debug logging
+                        default: False
+    -l --logpath        Path where the log file output is written
+                        default: None
 
 Configuration
 -------------
-Example kenkou.cfg file:
+Example kenkou.json file:
 
-```json
+```
 { "debug": true,
-  "url":  "http://127.0.0.1:8080",
-  "period":  "5m",
-  "onfail": { "url": "https://events.pagerduty.com/generic/2010-04-15/create_event.json",
-              "method": "POST",
-              "params": { "service_key": "92029390290923939",
-                          "incident_key": "server01/HTTP",
-                          "event_type": "trigger",
-                          "description": "FAILURE for production/HTTP"
-                        }
-            }
+  "echo": true,
+  "pagerduty": {
+    "url": "https://events.pagerduty.com/generic/2010-04-15/create_event.json",
+    "method": "POST",
+    "params": { "service_key": "secrets",
+                "incident_key": "incident_secret",
+                "event_type": "trigger",
+                "description": "FAILURE for production/HTTP"
+    }
+  },
+  "postageapp": {
+    "api_key": "secrets",
+    "recipients": ["email@example.com"]
+  },
+  "onfail": [ "postageapp" ],
+  "urls": {
+    "file": "urls_to_check.json",
+    "redis": { "host": "127.0.0.1",
+               "port": 6379,
+               "namespace": "kenkou"
+    }
+  }
+}
+```
+
+The namespace for the Redis option is used to build both the key used to retrieve the
+list of urls and also the keys used to store the last results.
+
+  kenkou:urls_to_check = []
+  kenkou:result.URL    = 200
+
+The file option allows for multiple sites to be grouped, for example:
+
+```
+{
+  "production": [
+    "http://127.0.0.1",
+    "http://example.com"
+  ]
 }
 ```
 
 TODO
 ----
-  * make the config file handle multiple sites
   * copy some parsing code from parsedatetime so the period value can be more free form, e.g.
     5m, 5 min, 5 minutes, 3 days 2 min and so on
   * make the success determination more data driven such that it could be any result code or
