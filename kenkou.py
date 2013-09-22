@@ -16,6 +16,7 @@
 import os, sys
 import json
 import time
+import uuid
 import email
 import types
 import logging
@@ -56,7 +57,7 @@ def pagerDuty(payload):
 
     log.info('sending trigger request')
     try:
-        req = urllib2.Request(config.options.pagerduty'url'])
+        req = urllib2.Request(config.options.pagerduty['url'])
         req.add_data(json.dumps(params))
         req.add_header('Content-Type', 'application/json')
         res = urllib2.urlopen(req)
@@ -69,21 +70,21 @@ def pagerDuty(payload):
     except:
         log.exception('Error during failure reporting, exiting')
 
-def postageApp(body):
+def postageApp(subject, body):
     payload = { "api_key":   config.options.postageapp['api_key'],
                 "uid":       str(uuid.uuid4()),
-                "arguments": { "recipients": config.options.recipients,
-                               "headers":    { "subject": msg.get('Subject'),
-                                               "from":    msg.get('From'),
+                "arguments": { "recipients": config.options.postageapp['recipients'],
+                               "headers":    { "subject": subject,
+                                               "from":    "kenkou <ops@andyet.net>",
                                              },
-                               "content":    { "text/plain": payload }
+                               "content":    { "text/plain": body }
                              }
               }
 
-    s = json.dumps(body)
+    s = json.dumps(payload)
     r = requests.post('https://api.postageapp.com/v.1.0/send_message.json', data=s, headers={'Content-Type': 'application/json'})
 
-    return r.status
+    return r.status_code
 
 _exception = """Kenkou has discovered an issue with the site %(url)s
 The result from the attempt to reach the site is:
@@ -106,9 +107,11 @@ def handleEvent(sitename, sitedata, status, message):
     else:
         body = _error % data
 
+    subject = "Kenkou Site Check Failed for %s" % sitename
+
     for item in config.options.onfail:
         if item == 'postageapp':
-            log.info('event sent to PostageApp: %s' % postageApp(body))
+            log.info('event sent to PostageApp: %s' % postageApp(subject, body))
         elif item == 'pagerduty':
             pagerDuty(body)
 
