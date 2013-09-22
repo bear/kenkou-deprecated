@@ -17,6 +17,7 @@ Where:
                         default: False
     -l --logfile        Filename to write the log output
                         default: None
+```
 
 Configuration
 -------------
