@@ -22,7 +22,7 @@ Configuration
 -------------
 Example kenkou.cfg file:
 
-```
+```json
 { "debug": true,
   "echo": true,
   "pagerduty": {
@@ -60,10 +60,10 @@ list of urls and also the keys used to store the last results.
 
 The file option allows for multiple sites to be grouped, for example:
 
-```
+```json
 {
   "production": {
-    "main":    { "url": http://127.0.0.1" },
+    "main":    { "url": "http://127.0.0.1" },
     "example": { "url": "http://example.com" }
   ]
 }
