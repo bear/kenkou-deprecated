@@ -130,7 +130,7 @@ def check(sitename, sitedata):
         url = sitedata['url']
 
         try:
-            r = requests.get(url)
+            r = requests.get(url, verify=False)
             log.info('site %s (%s) responded with %s' % (sitename, url, r.status_code))
 
             if r.status_code != 200:
@@ -141,7 +141,7 @@ def check(sitename, sitedata):
                 requests.exceptions.HTTPError,
                 requests.exceptions.URLRequired,
                 requests.exceptions.TooManyRedirects) as e:
-            log.error('ERROR for %s (%s): %s' % (sitename, url, e.message))
+            log.exception('ERROR for %s (%s): %s' % (sitename, url, e.message))
             handleEvent(sitename, sitedata, None, e.message)
 
 
