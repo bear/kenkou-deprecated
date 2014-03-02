@@ -156,10 +156,9 @@ def hasURL(tag):
 
 def checkMixedContent(response):
     """Search the html content for a URL for all URLs that would trigger
-       a mixed content warning.
+       a mixed content warning. All anchor tags ( <a href=url>) are skipped.
 
         HTML4:
-            <a href=url>
             <applet codebase=url>
             <area href=url>
             <base href=url>
