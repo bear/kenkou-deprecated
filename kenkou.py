@@ -50,7 +50,6 @@ def normalizeFilename(filename):
 
 def loadConfig(cfgFilename):
     result = {}
-
     if not os.path.exists(cfgFilename):
         for cfgpath in configPaths:
             possibleFile = normalizeFilename(os.path.join(cfgpath, configName))
@@ -61,7 +60,6 @@ def loadConfig(cfgFilename):
         possibleFile = normalizeFilename(cfgFilename)
         if os.path.exists(possibleFile):
             result = json.load(open(possibleFile, 'r'))
-
     return result
 
 def flatten(source):
@@ -89,7 +87,7 @@ def pagerDuty(payload):
         req = urllib2.Request(config['pagerduty']['url'])
         req.add_data(json.dumps(params))
         req.add_header('Content-Type', 'application/json')
-        res = urllib2.urlopen(req)
+        res    = urllib2.urlopen(req)
         result = json.loads(res.read())
 
         if 'status' in result and result['status'] == 'success':
@@ -104,7 +102,7 @@ def postageApp(subject, body):
                 "uid":       str(uuid.uuid4()),
                 "arguments": { "recipients": config['postageapp']['recipients'],
                                "headers":    { "subject": subject,
-                                               "from":    "kenkou <ops@andyet.net>",
+                                               "from":    config['sender'],
                                              },
                                "content":    { "text/plain": body }
                              }
@@ -126,21 +124,18 @@ The body of the request is:
 """
 
 def handleEvent(sitename, sitedata, status, message):
-    data = { 'sitename': sitename,
-             'url':      sitedata['url'],
-             'status':   status,
-             'message':  message
-           }
+    log.error('Check event for %s (%s) %s: %s' % (sitename, sitedata['url'], status, message))
+    subject = "Kenkou Site Check Failed for %s" % sitename
+    data    = { 'sitename': sitename,
+                'url':      sitedata['url'],
+                'status':   status,
+                'message':  message
+              }
     if status is None:
         body = _exception % data
     else:
         body = _error % data
-
-    log.error('Check event for %s (%s) %s: %s' % (sitename, sitedata['url'], status, message))
-
-    subject = "Kenkou Site Check Failed for %s" % sitename
-
-    for item in config['onfail']:
+    for item in config['onevent']:
         if item == 'postageapp':
             log.debug('event sent to PostageApp: %s' % postageApp(subject, body))
         elif item == 'pagerduty':
@@ -158,7 +153,7 @@ def checkMixedContent(response):
     """Search the html content for a URL for all URLs that would trigger
        a mixed content warning. 
 
-       All anchor tags and link tags with rel="alternate are skipped.
+       All anchor tags and link tags with rel="alternate" are skipped.
 
         HTML4:
             <applet codebase=url>
@@ -192,20 +187,18 @@ def checkMixedContent(response):
     mixed   = []
     urlData = urlparse.urlparse(response.url)
     scheme  = urlData.scheme.lower()
-
     if scheme == 'https':
         bsoup = BeautifulSoup(response.text, 'html5lib')
         for tag in bsoup.find_all(True):
             f, item = hasURL(tag)
-
             if f:
-                tagUrl = tag.attrs[item]
+                tagUrl  = tag.attrs[item]
+                urlData = urlparse.urlparse(tagUrl)
                 if tag.name == 'a':
                     continue
                 if (tag.name == 'link') and ('rel' in tag.attrs) and ('alternate' in tag.attrs['rel']):
                     log.debug('skipping link tag with url %s' % tagUrl)
                     continue
-                urlData = urlparse.urlparse(tagUrl)
                 if len(urlData.scheme) == 0:
                     tagScheme = scheme
                 else:

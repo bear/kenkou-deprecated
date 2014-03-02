@@ -31,7 +31,6 @@ Example kenkou.cfg file:
 
 ```json
 { "debug": true,
-  "echo": true,
   "pagerduty": {
     "url": "https://events.pagerduty.com/generic/2010-04-15/create_event.json",
     "method": "POST",
@@ -45,14 +44,20 @@ Example kenkou.cfg file:
     "api_key": "secrets",
     "recipients": ["email@example.com"]
   },
-  "onfail": [ "postageapp" ],
-  "redis": { "host": "127.0.0.1",
-             "port": 6379,
-             "db": 0,
-             "namespace": "kenkou"
-  }
+  "onevent": [ "postageapp" ],
   "urls": {
-    "file": "urls_to_check.cfg",
+    "file": "urls_to_check.cfg"
+  }
+}
+```
+
+The file option allows for multiple sites to be grouped, for example:
+
+```json
+{
+  "production": {
+    "main":    { "url": "http://127.0.0.1" },
+    "example": { "url": "http://example.com" }
   }
 }
 ```
@@ -65,15 +70,4 @@ list of urls and also the keys used to store the last results.
   kenkou:url.production           [ "main" ]
   kenkou:url.production.main      { "url": "http://127.0.0.1" }
   kenkou:result.production.main   200
-```
-
-The file option allows for multiple sites to be grouped, for example:
-
-```json
-{
-  "production": {
-    "main":    { "url": "http://127.0.0.1" },
-    "example": { "url": "http://example.com" }
-  }
-}
 ```
