@@ -9,15 +9,17 @@ Usage
 -----
 
 ```
-python kenkou.py [-c|--config FILENAME] [-d|--debug] [-l|--logfile LOGFILE]
+python kenkou.py [-c|--config FILENAME]
 
 Where:
-    -c --config         Configuration file (json format)
-    -d --debug          Turn on debug logging
-                        default: False
-    -l --logfile        Filename to write the log output
-                        default: None
+    -c --config  Configuration file (json format)
 ```
+
+Requirements
+------------
+requests
+beautifulsoup4
+html5lib
 
 Configuration
 -------------
