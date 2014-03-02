@@ -1,7 +1,8 @@
 kenkou
 ======
+健康 - kenkou - health
 
-A python tool to check that an http resource is alive.
+A python based tool to check that an http resource is alive.
 
 All redirects are followed and once the final URL is discovered it is tested
 for a 2XX result. If 2XX is returned it is also scanned for mixed-content items.
