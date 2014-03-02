@@ -197,7 +197,7 @@ def checkMixedContent(url, response):
         for tag in bsoup.find_all(True):
             f, item = hasURL(tag)
 
-            if f:
+            if f and (tag.name != 'a'):
                 tagUrl  = tag.attrs[item]
                 urlData = urlparse.urlparse(tagUrl)
                 if len(urlData.scheme) == 0:
