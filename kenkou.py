@@ -154,7 +154,7 @@ def hasURL(tag):
             return True, item
     return False, None
 
-def checkMixedContent(url, response):
+def checkMixedContent(response):
     """Search the html content for a URL for all URLs that would trigger
        a mixed content warning.
 
@@ -189,7 +189,7 @@ def checkMixedContent(url, response):
             <video poster=url> and <video src=url>
     """
     mixed   = []
-    urlData = urlparse.urlparse(url)
+    urlData = urlparse.urlparse(response.url)
     scheme  = urlData.scheme.lower()
 
     if scheme == 'https':
@@ -215,12 +215,14 @@ def check(sitename, sitedata):
 
         try:
             r = requests.get(url, verify=False)
-            log.debug('%s responded with %s' % (url, r.status_code))
+            if url != r.url:
+                log.debug('URL was redirected, processing last URL handled')
+            log.debug('%s responded with %s' % (r.url, r.status_code))
 
             if r.status_code != 200:
                 handleEvent(sitename, sitedata, r.status_code, r.text)
             else:
-                mixed = checkMixedContent(url, r)
+                mixed = checkMixedContent(r)
                 if len(mixed) > 0:
                     s = 'Mixed Content URLs found within the site\n'
                     for url in mixed:
