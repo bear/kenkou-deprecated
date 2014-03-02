@@ -3,6 +3,9 @@ kenkou
 
 A python tool to check that an http resource is alive.
 
+All redirects are followed and once the final URL is discovered it is tested
+for a 2XX result. If 2XX is returned it is also scanned for mixed-content items.
+
 Designed to be run from a cronjob as often as you want to check the sites.
 
 Usage

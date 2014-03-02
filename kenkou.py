@@ -156,7 +156,9 @@ def hasURL(tag):
 
 def checkMixedContent(response):
     """Search the html content for a URL for all URLs that would trigger
-       a mixed content warning. All anchor tags ( <a href=url>) are skipped.
+       a mixed content warning. 
+
+       All anchor tags and link tags with rel="alternate are skipped.
 
         HTML4:
             <applet codebase=url>
@@ -196,8 +198,13 @@ def checkMixedContent(response):
         for tag in bsoup.find_all(True):
             f, item = hasURL(tag)
 
-            if f and (tag.name != 'a'):
-                tagUrl  = tag.attrs[item]
+            if f:
+                tagUrl = tag.attrs[item]
+                if tag.name == 'a':
+                    continue
+                if (tag.name == 'link') and ('rel' in tag.attrs) and ('alternate' in tag.attrs['rel']):
+                    log.debug('skipping link tag with url %s' % tagUrl)
+                    continue
                 urlData = urlparse.urlparse(tagUrl)
                 if len(urlData.scheme) == 0:
                     tagScheme = scheme
