@@ -26,10 +26,13 @@ import argparse
 
 from bs4 import BeautifulSoup, SoupStrainer
 import requests
+import dns.resolver
+import dns.message
+import dns.query
 
 
-_version_   = u'0.4.5'
-_copyright_ = u'Copyright (c) 2012-2013 Mike Taylor'
+_version_   = u'0.4.6'
+_copyright_ = u'Copyright (c) 2012-2014 Mike Taylor'
 _license_   = u'BSD 2-Clause'
 
 _ourPath = os.getcwd()
@@ -72,28 +75,28 @@ def flatten(source):
             result[key] = source[ns][site]
     return result, namespaces
 
-def pagerDuty(payload):
+def pagerDuty(event):
     if 'method' in config['pagerduty']:
         method = config['pagerduty']['method']
     else:
         method = 'POST'
     if 'params' in config['pagerduty']:
         params = config['pagerduty']['params']
-    else:
-        params = {}
 
     log.info('sending trigger request')
-    try:
-        req = urllib2.Request(config['pagerduty']['url'])
-        req.add_data(json.dumps(params))
-        req.add_header('Content-Type', 'application/json')
-        res    = urllib2.urlopen(req)
-        result = json.loads(res.read())
 
-        if 'status' in result and result['status'] == 'success':
+    try:
+        if '%s' in params['incident_key']:
+            params['incident_key'] = params['incident_key'] % event['sitename']
+
+        params['description'] = event['subject'][:1000]
+ 
+        resp = requests.post(config['pagerduty']['url'], data=json.dumps(params))
+
+        if resp.status_code == requests.codes.ok:
             log.info('trigger successfully sent')
         else:
-            log.error('trigger failed: %s' % result['message'])
+            log.error('trigger failed: %s %s' % (resp.status_code, resp.text))
     except:
         log.exception('Error during failure reporting, exiting')
 
@@ -102,7 +105,7 @@ def postageApp(subject, body):
                 "uid":       str(uuid.uuid4()),
                 "arguments": { "recipients": config['postageapp']['recipients'],
                                "headers":    { "subject": subject,
-                                               "from":    config['sender'],
+                                               "from":    "kenkou <ops@andyet.net>",
                                              },
                                "content":    { "text/plain": body }
                              }
@@ -122,24 +125,57 @@ The result from the attempt to reach the site is: %(status)s
 The body of the request is:
 %(message)s
 """
+_IPerror =  """Kenkou has discovered an issue with the DNS for %(sitename)s.
+The IP address should be %(ip)s but the DNS Query returned %(found)s
+"""
+_NSerror =  """Kenkou has discovered an issue with the DNS for %(sitename)s.
+The nameserver list should be:
+%(nameservers)s
+but the DNS lookup returned
+%(found)s
+"""
 
 def handleEvent(sitename, sitedata, status, message):
     log.error('Check event for %s (%s) %s: %s' % (sitename, sitedata['url'], status, message))
+
     subject = "Kenkou Site Check Failed for %s" % sitename
     data    = { 'sitename': sitename,
                 'url':      sitedata['url'],
                 'status':   status,
-                'message':  message
+                'message':  message,
+                'subject':  subject
               }
     if status is None:
         body = _exception % data
     else:
         body = _error % data
+
     for item in config['onevent']:
         if item == 'postageapp':
             log.debug('event sent to PostageApp: %s' % postageApp(subject, body))
         elif item == 'pagerduty':
-            log.debug('event sent to pagerDuty: %s' % pagerDuty(body))
+            log.debug('event sent to pagerDuty: %s' % pagerDuty(data))
+
+def handleDNSEvent(sitename, ip, nameservers, found):
+    log.error('Check event for %s' % sitename)
+
+    subject = "Kenkou DNS Check Failed for %s" % sitename
+    data    = { 'sitename':    sitename,
+                'ip':          ip,
+                'nameservers': nameservers,
+                'found':       found
+                'subject':     subject
+              }
+    if ip is None:
+        body = _NSerror % data
+    else:
+        body = _IPerror % data
+
+    for item in config['onevent']:
+        if item == 'postageapp':
+            log.debug('event sent to PostageApp: %s' % postageApp(subject, body))
+        elif item == 'pagerduty':
+            log.debug('event sent to pagerDuty: %s' % pagerDuty(data))
 
 def hasURL(tag):
     for item in ('href', 'cite', 'background', 'action', 'profile', 'src', 
@@ -187,13 +223,16 @@ def checkMixedContent(response):
     mixed   = []
     urlData = urlparse.urlparse(response.url)
     scheme  = urlData.scheme.lower()
+
     if scheme == 'https':
         bsoup = BeautifulSoup(response.text, 'html5lib')
         for tag in bsoup.find_all(True):
             f, item = hasURL(tag)
+
             if f:
                 tagUrl  = tag.attrs[item]
                 urlData = urlparse.urlparse(tagUrl)
+
                 if tag.name == 'a':
                     continue
                 if (tag.name == 'link') and ('rel' in tag.attrs) and ('alternate' in tag.attrs['rel']):
@@ -207,7 +246,7 @@ def checkMixedContent(response):
                     mixed.append(tagUrl)
     return mixed
 
-def check(sitename, sitedata):
+def checkURLS(sitename, sitedata):
     log.debug('checking %s' % sitename)
     if 'url' in sitedata:
         url = sitedata['url']
@@ -234,6 +273,35 @@ def check(sitename, sitedata):
                 requests.exceptions.URLRequired,
                 requests.exceptions.TooManyRedirects) as e:
             handleEvent(sitename, sitedata, None, e.message)
+
+def checkDNS(sitename, sitedata):
+    log.debug('checking %s' % sitename)
+    if 'dns' in sitedata:
+        domain, ip, nameservers = sitedata['dns']
+
+        ips = []
+        ns  = []
+
+        for a in dns.resolver.query(domain):
+            ips.append(a.to_text())
+
+        q = dns.message.make_query(domain, dns.rdatatype.NS)
+        m = dns.query.udp(q, '8.8.8.8')
+
+        k = m.index.keys()[0]
+        for i in m.index[k]:
+            ns.append(i.to_text())
+
+        if ip not in ips:
+            handleEvent(sitename, ip, None, ips)
+
+        for s in nameservers:
+            for t in ns:
+                if t.startswith(s):
+                    ns.remove(t)
+
+        if len(ns) > 0:
+            handleDNSEvent(sitename, None, nameservers, ns)
 
 
 if __name__ == '__main__':
@@ -270,4 +338,22 @@ if __name__ == '__main__':
     urls, namespaces = flatten(urls)
 
     for key in urls.keys():
-        check(key, urls[key])
+        checkURLS(key, urls[key])
+
+    dnsitems   = {}
+    namespaces = []
+    for k in config['dns']:
+        if k == 'file':
+            try:
+                fDNS = json.loads(' '.join(open(config['dns'][k], 'r').readlines()))
+                for key in fDNS:
+                    dnsitems[key] = fDNS[key]
+            except:
+                log.exception('unable to load dns list from %s' % config['dns'][k])
+        else:
+            log.error('Unknown URL entry [%s]' % k)
+
+    dnsitems, namespaces = flatten(dnsitems)
+
+    for key in dnsitems.keys():
+        checkDNS(key, dnsitems[key])

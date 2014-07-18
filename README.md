@@ -24,6 +24,7 @@ Requirements
 requests
 beautifulsoup4
 html5lib
+dnspython
 
 Configuration
 -------------
