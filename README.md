@@ -24,11 +24,11 @@ Where:
 
 Requirements
 ------------
-requests
-beautifulsoup4
-html5lib
-dnspython
-pyOpenSSL
+* requests
+* beautifulsoup4
+* html5lib
+* dnspython
+* pyOpenSSL
 
 Configuration
 -------------
