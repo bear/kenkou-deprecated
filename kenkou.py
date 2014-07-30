@@ -19,11 +19,13 @@ import time
 import uuid
 import email
 import types
+import socket
 import logging
 import datetime
 import urlparse
 import argparse
 
+from OpenSSL import SSL
 from bs4 import BeautifulSoup, SoupStrainer
 import requests
 import dns.resolver
@@ -135,12 +137,12 @@ but the DNS lookup returned
 %(found)s
 """
 
-def handleEvent(sitename, sitedata, status, message):
-    log.error('Check event for %s (%s) %s: %s' % (sitename, sitedata['url'], status, message))
+def handleEvent(sitename, sitedata, target, status, message):
+    log.error('Check event for %s (%s) %s: %s' % (sitename, target, status, message))
 
     subject = "Kenkou Site Check Failed for %s" % sitename
     data    = { 'sitename': sitename,
-                'url':      sitedata['url'],
+                'url':      target,
                 'status':   status,
                 'message':  message,
                 'subject':  subject
@@ -163,7 +165,7 @@ def handleDNSEvent(sitename, ip, nameservers, found):
     data    = { 'sitename':    sitename,
                 'ip':          ip,
                 'nameservers': nameservers,
-                'found':       found
+                'found':       found,
                 'subject':     subject
               }
     if ip is None:
@@ -246,8 +248,100 @@ def checkMixedContent(response):
                     mixed.append(tagUrl)
     return mixed
 
+# global vars for callback to use
+_certDomain  = None
+_certErrors  = []
+_certExpires = None
+_caCertFile  = '/etc/ssl/certs/ca-certificates.crt'
+if not os.path.isfile(_caCertFile):
+    _caCertFile = normalizeFilename('./ca-certificates.crt')
+
+def pyopenssl_check_callback(connection, x509, errnum, errdepth, ok):
+    '''callback for pyopenssl ssl check'''
+    global _certErrors, _certExpires
+    if _certDomain in x509.get_subject().commonName:
+        if x509.has_expired():
+            _certErrors.append('Certificate has expired!')
+        else:
+            try:
+                expire_date  = datetime.datetime.strptime(x509.get_notAfter(), "%Y%m%d%H%M%SZ")
+                expire_td    = expire_date - datetime.datetime.now()
+                _certExpires = expire_td.days
+            except:
+                _certErrors.append('Certificate has an unknown date format')
+    if not ok:
+        return False
+    return ok
+
+def checkCertificate(sitename, sitedata):
+    global _certDomain, _certErrors, _certExpires
+
+    log.debug('checking Certificates for %s' % sitename)
+
+    if not os.path.isfile(_caCertFile):
+        log.error('Unable to locate a ca-certificates.crt file')
+    else:
+        _certDomain  = sitedata['cert']
+        _certErrors  = []
+        _certExpires = 0
+
+        try:
+            socket.getaddrinfo(_certDomain, 443)[0][4][0]
+
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                sock.connect((_certDomain, 443))
+
+                try:
+                    ctx = SSL.Context(SSL.TLSv1_METHOD)
+                    ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT,
+                                   pyopenssl_check_callback)
+                    ctx.load_verify_locations(_caCertFile)
+
+                    ssl_sock = SSL.Connection(ctx, sock)
+                    ssl_sock.set_connect_state()
+                    ssl_sock.set_tlsext_host_name(_certDomain)
+                    ssl_sock.do_handshake()
+
+                    x509     = ssl_sock.get_peer_certificate()
+                    x509name = x509.get_subject().commonName
+
+                    for s in ('www.', '*.'):
+                        if x509name.startswith(s):
+                            x509name = x509name.replace(s, '')
+
+                    if x509name != _certDomain:
+                        _certErrors.append('Hostname does not match')
+
+                    ssl_sock.shutdown()
+
+                except SSL.Error as e:
+                    _certErrors.append('%s' % e)
+
+             
+                sock.close()
+
+            except socket.error as e:
+                _certErrors.append('%s' % e)
+
+        except socket.gaierror as e:
+            _certErrors.append('%s' % e)
+
+        msg = ''
+        if len(_certErrors) > 0:
+            msg  = '    failed verify with the following errors:'
+            msg += '\n'.join(_certErrors)
+        if _certExpires < 14:
+            msg += '    expires in %s days' % _certExpires
+
+        if len(msg) > 0:
+            msg = 'Certificate verification for the site has failed\n\n%s' % msg 
+            handleEvent(sitename, sitedata, _certDomain, None, msg)
+
+
+# talky.static {u'url': u'http://static.talky.io/readme'}
 def checkURLS(sitename, sitedata):
-    log.debug('checking %s' % sitename)
+    log.debug('checking URL for %s' % sitename)
     if 'url' in sitedata:
         url = sitedata['url']
 
@@ -258,24 +352,24 @@ def checkURLS(sitename, sitedata):
             log.debug('%s responded with %s' % (r.url, r.status_code))
 
             if r.status_code != 200:
-                handleEvent(sitename, sitedata, r.status_code, r.text)
+                handleEvent(sitename, sitedata, url, r.status_code, r.text)
             else:
                 mixed = checkMixedContent(r)
                 if len(mixed) > 0:
                     s = 'Mixed Content URLs found within the site\n'
                     for url in mixed:
                         s += '    %s\n' % url
-                    handleEvent(sitename, sitedata, r.status_code, s)
+                    handleEvent(sitename, sitedata, url, r.status_code, s)
 
         except (requests.exceptions.RequestException, 
                 requests.exceptions.ConnectionError,
                 requests.exceptions.HTTPError,
                 requests.exceptions.URLRequired,
                 requests.exceptions.TooManyRedirects) as e:
-            handleEvent(sitename, sitedata, None, e.message)
+            handleEvent(sitename, sitedata, url, None, e.message)
 
 def checkDNS(sitename, sitedata):
-    log.debug('checking %s' % sitename)
+    log.debug('checking DNS for %s' % sitename)
     if 'dns' in sitedata:
         domain, ip, nameservers = sitedata['dns']
 
@@ -293,7 +387,7 @@ def checkDNS(sitename, sitedata):
             ns.append(i.to_text())
 
         if ip not in ips:
-            handleEvent(sitename, ip, None, ips)
+            handleDNSEvent(sitename, ip, None, ips)
 
         for s in nameservers:
             for t in ns:
@@ -336,9 +430,11 @@ if __name__ == '__main__':
             log.error('Unknown URL entry [%s]' % k)
 
     urls, namespaces = flatten(urls)
-
     for key in urls.keys():
-        checkURLS(key, urls[key])
+        if 'cert' in urls[key]:
+            checkCertificate(key, urls[key])
+        else:
+            checkURLS(key, urls[key])
 
     dnsitems   = {}
     namespaces = []
@@ -354,6 +450,5 @@ if __name__ == '__main__':
             log.error('Unknown URL entry [%s]' % k)
 
     dnsitems, namespaces = flatten(dnsitems)
-
     for key in dnsitems.keys():
         checkDNS(key, dnsitems[key])
