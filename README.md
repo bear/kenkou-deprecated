@@ -6,7 +6,7 @@ A python based tool to check that a given resource is alive and valid.
 
 It can check on URLs, Certificates and also DNS entries.
 
-All redirects are followed and once the final URL is discovered it is tested for a 2XX result. If 2XX is returned it is also scanned for mixed-content items.
+All redirects are followed and once the final URL is discovered it is tested for a 2XX result. If a 2XX is returned it is also scanned for mixed-content items if the url is HTTPS. The certificate for an HTTPS site is verified if ```verify_https``` is True in the config.
 
 Currently it assumes port 443 for TLS and also that the given domain resolves to an IP address.
 
@@ -50,6 +50,7 @@ Example kenkou.cfg file:
     "recipients": ["email@example.com"]
   },
   "onevent": [ "postageapp" ],
+  "verify_https": true,
   "urls": {
     "file": "urls_to_check.cfg"
   },

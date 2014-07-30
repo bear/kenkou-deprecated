@@ -340,13 +340,13 @@ def checkCertificate(sitename, sitedata):
 
 
 # talky.static {u'url': u'http://static.talky.io/readme'}
-def checkURLS(sitename, sitedata):
+def checkURLS(sitename, sitedata, verifyHTTPS=False):
     log.debug('checking URL for %s' % sitename)
     if 'url' in sitedata:
         url = sitedata['url']
 
         try:
-            r = requests.get(url, verify=False)
+            r = requests.get(url, verify=verifyHTTPS)
             if url != r.url:
                 log.debug('URL was redirected, processing last URL handled')
             log.debug('%s responded with %s' % (r.url, r.status_code))
@@ -434,7 +434,11 @@ if __name__ == '__main__':
         if 'cert' in urls[key]:
             checkCertificate(key, urls[key])
         else:
-            checkURLS(key, urls[key])
+            if 'verify_https' in config:
+                verify = config['verify_https']
+            else:
+                verify = False
+            checkURLS(key, urls[key], verify)
 
     dnsitems   = {}
     namespaces = []
