@@ -2,10 +2,13 @@ kenkou
 ======
 健康 - kenkou - health
 
-A python based tool to check that an http resource is alive.
+A python based tool to check that a given resource is alive and valid.
 
-All redirects are followed and once the final URL is discovered it is tested
-for a 2XX result. If 2XX is returned it is also scanned for mixed-content items.
+It can check on URLs, Certificates and also DNS entries.
+
+All redirects are followed and once the final URL is discovered it is tested for a 2XX result. If 2XX is returned it is also scanned for mixed-content items.
+
+Currently it assumes port 443 for TLS and also that the given domain resolves to an IP address.
 
 Designed to be run from a cronjob as often as you want to check the sites.
 
@@ -25,6 +28,7 @@ requests
 beautifulsoup4
 html5lib
 dnspython
+pyOpenSSL
 
 Configuration
 -------------
@@ -48,17 +52,37 @@ Example kenkou.cfg file:
   "onevent": [ "postageapp" ],
   "urls": {
     "file": "urls_to_check.cfg"
+  },
+  "dns": {
+    "file": "dns_to_check.cfg"
   }
 }
 ```
 
-The file option allows for multiple sites to be grouped, for example:
+The file option allows for multiple sites to be grouped.
+
+urls_to_check.cfg:
 
 ```json
 {
   "production": {
     "main":    { "url": "http://127.0.0.1" },
-    "example": { "url": "http://example.com" }
+    "example": { "url": "http://example.com" },
+    "certchk": { "cert": "example.com" }
+  }
+}
+```
+
+dns_to_check.cfg:
+
+```json
+{
+  "production": {
+    "main": { "dns": [ "example.com", 
+                       "127.0.0.1", 
+                       [ "ns1.dnsimple.com", "ns2.dnsimple.com" ]
+                     ]
+    }
   }
 }
 ```
