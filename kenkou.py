@@ -252,9 +252,6 @@ def checkMixedContent(response):
 _certDomain  = None
 _certErrors  = []
 _certExpires = None
-_caCertFile  = '/etc/ssl/certs/ca-certificates.crt'
-if not os.path.isfile(_caCertFile):
-    _caCertFile = normalizeFilename('./ca-certificates.crt')
 
 def pyopenssl_check_callback(connection, x509, errnum, errdepth, ok):
     '''callback for pyopenssl ssl check'''
@@ -278,65 +275,61 @@ def checkCertificate(sitename, sitedata):
 
     log.debug('checking Certificates for %s' % sitename)
 
-    if not os.path.isfile(_caCertFile):
-        log.error('Unable to locate a ca-certificates.crt file')
-    else:
-        _certDomain  = sitedata['cert']
-        _certErrors  = []
-        _certExpires = 0
+    _certDomain  = sitedata['cert']
+    _certErrors  = []
+    _certExpires = 0
 
+    try:
+        socket.getaddrinfo(_certDomain, 443)[0][4][0]
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            socket.getaddrinfo(_certDomain, 443)[0][4][0]
+            sock.connect((_certDomain, 443))
 
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
-                sock.connect((_certDomain, 443))
+                ctx = SSL.Context(SSL.TLSv1_METHOD)
+                ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT,
+                               pyopenssl_check_callback)
+                ctx.load_verify_locations(config['cafile'])
 
-                try:
-                    ctx = SSL.Context(SSL.TLSv1_METHOD)
-                    ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT,
-                                   pyopenssl_check_callback)
-                    ctx.load_verify_locations(_caCertFile)
+                ssl_sock = SSL.Connection(ctx, sock)
+                ssl_sock.set_connect_state()
+                ssl_sock.set_tlsext_host_name(_certDomain)
+                ssl_sock.do_handshake()
 
-                    ssl_sock = SSL.Connection(ctx, sock)
-                    ssl_sock.set_connect_state()
-                    ssl_sock.set_tlsext_host_name(_certDomain)
-                    ssl_sock.do_handshake()
+                x509     = ssl_sock.get_peer_certificate()
+                x509name = x509.get_subject().commonName
 
-                    x509     = ssl_sock.get_peer_certificate()
-                    x509name = x509.get_subject().commonName
+                for s in ('www.', '*.'):
+                    if x509name.startswith(s):
+                        x509name = x509name.replace(s, '')
 
-                    for s in ('www.', '*.'):
-                        if x509name.startswith(s):
-                            x509name = x509name.replace(s, '')
+                if x509name != _certDomain:
+                    _certErrors.append('Hostname does not match')
 
-                    if x509name != _certDomain:
-                        _certErrors.append('Hostname does not match')
+                ssl_sock.shutdown()
 
-                    ssl_sock.shutdown()
-
-                except SSL.Error as e:
-                    _certErrors.append('%s' % e)
-
-             
-                sock.close()
-
-            except socket.error as e:
+            except SSL.Error as e:
                 _certErrors.append('%s' % e)
 
-        except socket.gaierror as e:
+            sock.close()
+
+        except socket.error as e:
             _certErrors.append('%s' % e)
 
-        msg = ''
-        if len(_certErrors) > 0:
-            msg  = '    failed verify with the following errors:'
-            msg += '\n'.join(_certErrors)
-        if _certExpires < 14:
-            msg += '    expires in %s days' % _certExpires
+    except socket.gaierror as e:
+        _certErrors.append('%s' % e)
 
-        if len(msg) > 0:
-            msg = 'Certificate verification for the site has failed\n\n%s' % msg 
-            handleEvent(sitename, sitedata, _certDomain, None, msg)
+    msg = ''
+    if len(_certErrors) > 0:
+        msg  = '    failed verify with the following errors:'
+        msg += '\n'.join(_certErrors)
+    if _certExpires < 14:
+        msg += '    expires in %s days' % _certExpires
+
+    if len(msg) > 0:
+        msg = 'Certificate verification for the site has failed\n\n%s' % msg 
+        handleEvent(sitename, sitedata, _certDomain, None, msg)
 
 
 # talky.static {u'url': u'http://static.talky.io/readme'}
@@ -401,6 +394,7 @@ def checkDNS(sitename, sitedata):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', default='%s.cfg' % _ourName)
+    parser.add_argument('--cafile', default='/etc/ssl/certs/ca-certificates.crt')
 
     args   = parser.parse_args()
     config = loadConfig(args.config)
