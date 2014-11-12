@@ -14,6 +14,7 @@
 """
 
 import os, sys
+import re
 import json
 import time
 import uuid
@@ -26,7 +27,12 @@ import urlparse
 import argparse
 
 from OpenSSL import SSL
+from pyasn1.codec.der.decoder import decode
+from pyasn1.type.char import IA5String
+from pyasn1.type.univ import ObjectIdentifier
+from pyasn1_modules.rfc2459 import GeneralNames
 from bs4 import BeautifulSoup, SoupStrainer
+
 import requests
 import dns.resolver
 import dns.message
@@ -115,7 +121,6 @@ def postageApp(subject, body):
 
     s = json.dumps(payload)
     r = requests.post('https://api.postageapp.com/v.1.0/send_message.json', data=s, headers={'Content-Type': 'application/json'})
-
     return r.status_code
 
 _exception = """Kenkou has discovered an issue with the site %(url)s
@@ -248,6 +253,110 @@ def checkMixedContent(response):
                     mixed.append(tagUrl)
     return mixed
 
+
+# The match_hostname() function from Python 3.3.3
+#   _dnsname_match() and match_hostname() are lifted as-is except
+#   to modify them to use the x509 object that pyOpenSSL uses
+
+class CertificateError(ValueError):
+    pass
+
+def _dnsname_match(domain, hostname, max_wildcards=1):
+    """Matching according to RFC 6125, section 6.4.3
+
+    http://tools.ietf.org/html/rfc6125#section-6.4.3
+    """
+    patterns = []
+    if not domain:
+        return False
+
+    # Ported from python3-syntax:
+    # leftmost, *remainder = domain.split(r'.')
+    parts     = domain.split(r'.')
+    leftmost  = parts[0]
+    remainder = parts[1:]
+
+    wildcards = leftmost.count('*')
+    if wildcards > max_wildcards:
+        # Issue #17980: avoid denials of service by refusing more
+        # than one wildcard per fragment.  A survey of established
+        # policy among SSL implementations showed it to be a
+        # reasonable choice.
+        raise CertificateError(
+            "too many wildcards in certificate DNS name: " + repr(domain))
+
+    # speed up common case w/o wildcards
+    if not wildcards:
+        return domain.lower() == hostname.lower()
+
+    # RFC 6125, section 6.4.3, subitem 1.
+    # The client SHOULD NOT attempt to match a presented identifier in which
+    # the wildcard character comprises a label other than the left-most label.
+    if leftmost == '*':
+        # When '*' is a fragment by itself, it matches a non-empty dotless
+        # fragment.
+        patterns.append('[^.]+')
+    elif leftmost.startswith('xn--') or hostname.startswith('xn--'):
+        # RFC 6125, section 6.4.3, subitem 3.
+        # The client SHOULD NOT attempt to match a presented identifier
+        # where the wildcard character is embedded within an A-label or
+        # U-label of an internationalized domain name.
+        patterns.append(re.escape(leftmost))
+    else:
+        # Otherwise, '*' matches any dotless string, e.g. www*
+        patterns.append(re.escape(leftmost).replace(r'\*', '[^.]*'))
+
+    # add the remaining fragments, ignore any wildcards
+    for fragment in remainder:
+        patterns.append(re.escape(fragment))
+
+    pattern = re.compile(r'^%s' % r'\.'.join(patterns), re.IGNORECASE)
+    return pattern.match(hostname)
+
+
+def match_hostname(cert, hostname):
+    """Verify that *cert* (in decoded format as returned by
+    SSLSocket.getpeercert()) matches the *hostname*.  RFC 2818 and RFC 6125
+    rules are followed, but IP addresses are not accepted for *hostname*.
+
+    CertificateError is raised on failure. On success, the function
+    returns nothing.
+    """
+    if not cert:
+        raise ValueError("empty or no certificate")
+    dnsnames = []
+    for n in range(cert.get_extension_count()):
+        ext      = cert.get_extension(n)
+        extName  = ext.get_short_name()
+        if extName == b"subjectAltName":
+            names, _ = decode(ext.get_data(), asn1Spec=GeneralNames())
+            for item in names:
+                name  = item.getName()
+                value = bytes(item.getComponent())
+                if name == "dNSName":
+                    if _dnsname_match(value, hostname):
+                        return
+                    dnsnames.append(value)
+    if not dnsnames:
+        # The subject is only checked when there is no dNSName entry
+        # in subjectAltName
+        value = cert.get_subject().commonName
+        if _dnsname_match(value, hostname):
+            return
+        dnsnames.append(value)
+    if len(dnsnames) > 1:
+        raise CertificateError("hostname %r "
+            "doesn't match either of %s"
+            % (hostname, ', '.join(map(repr, dnsnames))))
+    elif len(dnsnames) == 1:
+        raise CertificateError("hostname %r "
+            "doesn't match %r"
+            % (hostname, dnsnames[0]))
+    else:
+        raise CertificateError("no appropriate commonName or "
+            "subjectAltName fields were found")
+
+
 # global vars for callback to use
 _certDomain  = None
 _certErrors  = []
@@ -256,16 +365,17 @@ _certExpires = None
 def pyopenssl_check_callback(connection, x509, errnum, errdepth, ok):
     '''callback for pyopenssl ssl check'''
     global _certErrors, _certExpires
-    if _certDomain in x509.get_subject().commonName:
-        if x509.has_expired():
-            _certErrors.append('Certificate has expired!')
-        else:
-            try:
-                expire_date  = datetime.datetime.strptime(x509.get_notAfter(), "%Y%m%d%H%M%SZ")
-                expire_td    = expire_date - datetime.datetime.now()
-                _certExpires = expire_td.days
-            except:
-                _certErrors.append('Certificate has an unknown date format')
+    log.debug('callback: %d %s' % (errdepth, x509.get_issuer().commonName))
+
+    if x509.has_expired():
+        _certErrors.append('Certificate %s has expired!' % x509.get_issuer().commonName)
+    else:
+        try:
+            expire_date  = datetime.datetime.strptime(x509.get_notAfter(), "%Y%m%d%H%M%SZ")
+            expire_td    = expire_date - datetime.datetime.now()
+            _certExpires = expire_td.days
+        except:
+            _certErrors.append('Certificate %s has an unknown date format' % x509.get_issuer().commonName)
     if not ok:
         return False
     return ok
@@ -275,9 +385,11 @@ def checkCertificate(sitename, sitedata):
 
     log.debug('checking Certificates for %s' % sitename)
 
-    _certDomain  = sitedata['cert']
+    _certDomain  = bytes(sitedata['cert'])
     _certErrors  = []
     _certExpires = 0
+
+    log.debug('certDomain [%s]' % _certDomain)
 
     try:
         socket.getaddrinfo(_certDomain, 443)[0][4][0]
@@ -288,6 +400,8 @@ def checkCertificate(sitename, sitedata):
 
             try:
                 ctx = SSL.Context(SSL.TLSv1_METHOD)
+                  # prevent fallback to insecure SSLv2
+                ctx.set_options(SSL.OP_NO_SSLv2)
                 ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT,
                                pyopenssl_check_callback)
                 ctx.load_verify_locations(config['cafile'])
@@ -297,14 +411,10 @@ def checkCertificate(sitename, sitedata):
                 ssl_sock.set_tlsext_host_name(_certDomain)
                 ssl_sock.do_handshake()
 
-                x509     = ssl_sock.get_peer_certificate()
-                x509name = x509.get_subject().commonName
-
-                for s in ('www.', '*.'):
-                    if x509name.startswith(s):
-                        x509name = x509name.replace(s, '')
-
-                if x509name != _certDomain:
+                x509 = ssl_sock.get_peer_certificate()
+                try:
+                    match_hostname(x509, _certDomain)
+                except CertificateError, ce:
                     _certErrors.append('Hostname does not match')
 
                 ssl_sock.shutdown()
@@ -401,6 +511,9 @@ if __name__ == '__main__':
 
     if config['debug']:
         log.setLevel(logging.DEBUG)
+
+    if 'cafile' not in config:
+        config['cafile'] = args.cafile
 
     log.info('Starting')
 

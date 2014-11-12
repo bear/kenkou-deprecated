@@ -12,6 +12,8 @@ Currently it assumes port 443 for TLS and also that the given domain resolves to
 
 Designed to be run from a cronjob as often as you want to check the sites.
 
+Note: if you are running kenkou on OS X you will need to export your root certificates using the Keychain Access tool. See https://www.madboa.com/geek/pine-macosx/#openssl for a great write-up on how to do this.
+
 Usage
 -----
 
@@ -24,6 +26,7 @@ Where:
 
 Requirements
 ------------
+See requirements.txt for details about what versions to install.
 * requests
 * beautifulsoup4
 * html5lib
