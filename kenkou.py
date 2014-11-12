@@ -351,7 +351,6 @@ def match_hostname(cert, hostname):
 def pyopenssl_check_callback(connection, x509, errnum, errdepth, ok):
     '''callback for pyopenssl ssl check'''
     log.debug('callback: %d %s' % (errdepth, x509.get_issuer().commonName))
-
     if x509.has_expired():
         raise CertificateError('Certificate %s has expired!' % x509.get_issuer().commonName)
     if not ok:
@@ -377,42 +376,40 @@ def checkCertificate(sitename, sitedata):
                 ctx.load_verify_locations(config['cafile'])
 
                 ssl_sock = SSL.Connection(ctx, sock)
-                ssl_sock.set_connect_state()
-                ssl_sock.set_tlsext_host_name(domain)
-                ssl_sock.do_handshake()
-
-                x509 = ssl_sock.get_peer_certificate()
                 try:
-                    match_hostname(x509, domain)
-                except CertificateError, ce:
-                    errors.append('Hostname does not match')
-                try:
-                    expire_date = datetime.datetime.strptime(x509.get_notAfter(), "%Y%m%d%H%M%SZ")
-                    expire_td   = expire_date - datetime.datetime.now()
-                    certExpires = expire_td.days
-                except:
-                    errors.append('Certificate %s has an unknown date format' % x509.get_issuer().commonName)
+                    ssl_sock.set_connect_state()
+                    ssl_sock.set_tlsext_host_name(domain)
+                    ssl_sock.do_handshake()
 
-                ssl_sock.shutdown()
+                    x509 = ssl_sock.get_peer_certificate()
+                    try:
+                        match_hostname(x509, domain)
+                    except CertificateError:
+                        errors.append('Hostname does not match')
+                    try:
+                        expire_date = datetime.datetime.strptime(x509.get_notAfter(), "%Y%m%d%H%M%SZ")
+                        expire_td   = expire_date - datetime.datetime.now()
+                        if expire_td.days < 15:
+                            errors.append('Expires in %s days' % expire_td.days)
+                    except:
+                        errors.append('Certificate %s has an unknown date format' % x509.get_issuer().commonName)
+                except Exception as e:
+                    errors.append('%s' % e)
+                finally:
+                    ssl_sock.shutdown()
             except SSL.Error as e:
                 errors.append('%s' % e)
-
-            sock.close()
+            finally:
+                sock.close()
         except socket.error as e:
             errors.append('%s' % e)
     except socket.gaierror as e:
         errors.append('%s' % e)
 
-    msg = ''
     if len(errors) > 0:
-        msg  = '    failed verify with the following errors:'
-        msg += '\n'.join(errors)
-    if certExpires < 14:
-        msg += '    expires in %s days' % certExpires
-
-    if len(msg) > 0:
-        msg = 'Certificate verification for the site has failed\n\n%s' % msg 
-        handleEvent(sitename, sitedata, _certDomain, None, msg)
+        msg = 'Certificate verification for the site has failed with the following errors:'
+        msg += '\n    '.join(errors)
+        handleEvent(sitename, sitedata, domain, None, msg)
 
 # talky.static {u'url': u'http://static.talky.io/readme'}
 def checkURLS(sitename, sitedata, verifyHTTPS=False):

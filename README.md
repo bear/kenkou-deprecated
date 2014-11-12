@@ -18,11 +18,16 @@ Usage
 -----
 
 ```
-python kenkou.py [-c|--config FILENAME]
+python kenkou.py [-c|--config FILENAME] [--cafile PATH]
 
 Where:
     -c --config  Configuration file (json format)
+    --cafile     Path to your OS root certificate file
 ```
+
+On OS X computers the root certificate file is located at ```/System/Library/OpenSSL/cert.pem``` if you have followed the export instructions given above.
+
+On modern Linux systems it can be found at ```/etc/ssl/certs/ca-certificates.crt```.
 
 Requirements
 ------------
