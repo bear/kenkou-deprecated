@@ -25,7 +25,6 @@ class TestExpiredCert(unittest.TestCase):
 class TestSelfSignedCert(unittest.TestCase):
   def runTest(self):
     r = checkCert('test', 'self-signed.badssl.com')
-    print r
     assert 'check' in r.keys()
     assert r['check']     == 'cert'
     assert len(r.keys())  == 5
@@ -47,8 +46,6 @@ class TestWrongHostCert(unittest.TestCase):
 class TestMsgSizeCert(unittest.TestCase):
   def runTest(self):
     r = checkCert('test', '10000-sans.badssl.com')
-    print r
-    # assert False == True
     assert 'check' in r.keys()
     assert r['check']     == 'cert'
     assert len(r.keys())  == 5
