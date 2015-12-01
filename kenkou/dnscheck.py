@@ -43,13 +43,10 @@ def handleEvent(namespace, domain, ip, nameservers, found):
 
   return event
 
-def checkDNS(namespace, data, debug=False):
+def checkDNS(namespace, data):
   events = []
   try:
     domain, ip, nameservers = data
-    if debug:
-      print('checking DNS for %s: %s %s' % (namespace, domain, ip))
-
     ips = []
     ns  = []
 
@@ -58,17 +55,18 @@ def checkDNS(namespace, data, debug=False):
 
     q = dns.message.make_query(domain, dns.rdatatype.NS)
     m = dns.query.udp(q, '8.8.8.8')
-
-    k = m.index.keys()[0]
-    for i in m.index[k]:
-      ns.append(i.to_text())
+    k = m.index.keys()[1]
+    s = m.index[k].to_text()
+    for t in s.split('\n'):
+      # code-bear.com. 899 IN NS ns1.hover.com.
+      ns.append(t.split()[-1][:-1])
 
     if ip not in ips:
       events.append(handleEvent(namespace, domain, ip, None, ips))
 
     for s in nameservers:
       for t in ns:
-        if t.startswith(s):
+        if t == s:
           ns.remove(t)
 
     if len(ns) > 0:
