@@ -1,3 +1,11 @@
+help:
+	@echo "  dev         create a development environment using virtualenv"
+	@echo "  clean       remove unwanted stuff"
+	@echo "  lint        check style with flake8"
+	@echo "  test        run tests"
+	@echo "  build       generate source and wheel dist files"
+	@echo "  upload      generate source and wheel dist files and upload them"
+
 venv:
 ifndef VIRTUAL_ENV
 	$(error Please install and activate a virtualenv before using the init or dev targets)
@@ -12,6 +20,9 @@ init: venv
 dev: init
 	pip install --upgrade -e .
 
+lint:
+	flake8 kenkou > violations.flake8.txt
+
 test:
 	nosetests --verbosity=2 tests
 
@@ -22,7 +33,7 @@ upload: check
 clean:
 	python setup.py clean
 
-dist: check
+build: check
 	python setup.py sdist
 
 check:
