@@ -79,3 +79,6 @@ def main(config=None, checks=None):
 
   if 'json' in config['onevent']:
     print(json.dumps(results, indent=2))
+
+  if len(results) > 0:
+    sys.exit(1)
