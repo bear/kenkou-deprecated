@@ -1,14 +1,8 @@
-venv:
-ifndef VIRTUAL_ENV
-  $(error Please install and activate a virtualenv before using the init or dev targets)
-endif
-
-init: venv
+dev:
 	pip install wheel
 	pip install nose
 	pip install check-manifest
-
-dev: init
+	pip install -r requirements.txt
 	pip install --upgrade -e .
 
 test:

@@ -4,6 +4,8 @@
 *.cfg
 *.log
 
+.python-version
+
 # Packages
 *.egg
 *.egg-info
