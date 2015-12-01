@@ -25,7 +25,7 @@ def extract_metaitem(meta):
 
 if __name__ == '__main__':
     setup(
-        name='ronkyuu',
+        name='kenkou',
         version=extract_metaitem('version'),
         description=extract_metaitem('description'),
         long_description=read('README.md'),
