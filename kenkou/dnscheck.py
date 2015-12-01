@@ -41,7 +41,7 @@ def checkDNS(namespace, data):
 
     q = dns.message.make_query(domain, dns.rdatatype.NS)
     m = dns.query.udp(q, '8.8.8.8')
-    k = m.index.keys()[1]
+    k = list(m.index.keys())[1]
     s = m.index[k].to_text()
     for t in s.split('\n'):
       # code-bear.com. 899 IN NS ns1.hover.com.

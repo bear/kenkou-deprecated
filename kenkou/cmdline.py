@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+
 
 """
 :copyright: (c) 2012-2015 by Mike Taylor
@@ -68,7 +68,7 @@ def main(config=None, checks=None):
     sys.exit(2)
 
   results = []
-  for namespace in checks.keys():
+  for namespace in list(checks.keys()):
     data = checks[namespace]
     if 'cert' in data:
       results.append(checkCert(namespace, data['cert'], config['cafile']))

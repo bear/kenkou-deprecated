@@ -5,7 +5,7 @@
 """
 
 import os, sys
-import urlparse
+import urllib.parse
 
 import requests
 from bs4 import BeautifulSoup, SoupStrainer
@@ -71,7 +71,7 @@ def checkMixedContent(response):
           <video poster=url> and <video src=url>
   """
   mixed   = []
-  urlData = urlparse.urlparse(response.url)
+  urlData = urllib.parse.urlparse(response.url)
   scheme  = urlData.scheme.lower()
 
   if scheme == 'https':
@@ -81,7 +81,7 @@ def checkMixedContent(response):
 
       if f:
         tagUrl  = tag.attrs[item]
-        urlData = urlparse.urlparse(tagUrl)
+        urlData = urllib.parse.urlparse(tagUrl)
 
         if tag.name == 'a':
           continue
