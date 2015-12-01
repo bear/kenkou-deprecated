@@ -72,9 +72,9 @@ def main(config=None, checks=None):
     data = checks[namespace]
     if 'cert' in data:
       results.append(checkCert(namespace, data['cert'], config['cafile']))
-    elif 'dns' in data:
+    if 'dns' in data:
       results.append(checkDNS(namespace, data['dns']))
-    elif 'url' in data:
+    if 'url' in data:
       results.append(checkURL(namespace, data['url']))
 
   if 'json' in config['onevent']:
