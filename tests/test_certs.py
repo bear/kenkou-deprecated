@@ -46,17 +46,6 @@ class TestWrongHostCert(unittest.TestCase):
 
 class TestMsgSizeCert(unittest.TestCase):
   def runTest(self):
-    s = "get_peer_certificate attempt: [('SSL routines', 'ssl3_get_server_certificate', 'certificate verify failed')]"
-    r = checkCert('test', 'incomplete-chain.badssl.com')
-    assert 'check' in r.keys()
-    assert r['check']     == 'cert'
-    assert len(r.keys())  == 5
-    assert r['domain']    == 'incomplete-chain.badssl.com'
-    assert r['namespace'] == 'test'
-    assert r['errors']    == s
-
-class TestMsgSizeCert(unittest.TestCase):
-  def runTest(self):
     s = "get_peer_certificate attempt: [('SSL routines', 'ssl3_get_message', 'excessive message size')]"
     r = checkCert('test', '10000-sans.badssl.com')
     assert 'check' in r.keys()
