@@ -57,25 +57,25 @@ def main(config=None, checks=None):
 
     config = loadConfig(args.config, possibleConfigFiles)
 
-  # set debug level for any modules that honour it
-  if 'debug' in config and config['debug']:
-    logging.getLogger().setLevel(logging.DEBUG)
-
   if 'cafile' not in config:
     config['cafile'] = None
-
+  if 'onevent' not in config:
+    config['onevent'] = ['json']
   if checks is None and 'checks' in config:
     checks = json.loads(' '.join(open(config['checks'], 'r').readlines()))
-
   if checks is None:
     print('The items to check is a required, exiting', file=sys.stderr)
     sys.exit(2)
 
+  results = []
   for namespace in checks.keys():
     data = checks[namespace]
     if 'cert' in data:
-      checkCert(namespace, data['cert'], config['cafile'])
+      results.append(checkCert(namespace, data['cert'], config['cafile']))
     elif 'dns' in data:
-      checkDNS(namespace, data['dns'])
+      results.append(checkDNS(namespace, data['dns']))
     elif 'url' in data:
-      checkURL(namespace, data['url'])
+      results.append(checkURL(namespace, data['url']))
+
+  if 'json' in config['onevent']:
+    print(json.dumps(results, indent=2))

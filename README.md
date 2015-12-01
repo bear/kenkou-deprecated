@@ -6,7 +6,7 @@ A python based tool to check that a given resource is alive and valid.
 
 It can check on URLs, Certificates and also DNS entries.
 
-All redirects are followed and once the final URL is discovered it is tested for a 2XX result. If a 2XX is returned it is also scanned for mixed-content items if the url is HTTPS. The certificate for an HTTPS site is verified if ```verify_https``` is True in the config.
+All redirects are followed and once the final URL is discovered it is tested for a 2XX result. If a 2XX is returned it is also scanned for mixed-content items if the url is HTTPS. Certificates are verified for any HTTPS site.
 
 Currently it assumes port 443 for TLS and also that the given domain resolves to an IP address.
 
@@ -18,29 +18,27 @@ Usage
 -----
 
 ```
-python kenkou.py [-c|--config FILENAME] [--cafile PATH]
+python kenkou.py [-c|--config FILENAME]
 
 Where:
     -c --config  Configuration file (json format)
+
+The output is a based on the value of the "onevent" configuration key:
+  "json" (default if not present)
+  "pagerduty"
+  "postageapp"
 ```
 
 Requirements
 ------------
-See requirements.txt for details about what versions to install.
-* requests
-* certifi
-* beautifulsoup4
-* html5lib
-* dnspython
-* pyOpenSSL
+See requirements.txt for details about what Python modules to install.
 
 Configuration
 -------------
 Example kenkou.cfg file:
 
 ```json
-{ "debug": true,
-  "pagerduty": {
+{ "pagerduty": {
     "url":    "https://events.pagerduty.com/generic/2010-04-15/create_event.json",
     "method": "POST",
     "params": { "service_key":  "secret",
@@ -54,14 +52,14 @@ Example kenkou.cfg file:
     "recipients": [ "email@example.com" ]
   },
   "onevent": [ "postageapp" ],
-  "checks": "things_to_check.cfg"
+  "checks": "kenkou_check.cfg"
 }
 ```
 
-urls_to_check.cfg:
+kenkou_check.cfg:
 
 ```json
-{ "web": { "url":  "http://example.com",
+{ "web": { "url":  "https://example.com",
            "dns":  [ "example.com", "127.0.0.1", 
                      [ "ns1.dnsimple.com", "ns2.dnsimple.com" ]
                    ],
