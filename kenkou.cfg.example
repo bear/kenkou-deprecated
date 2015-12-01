@@ -1,0 +1,16 @@
+{ "pagerduty": {
+    "url":    "https://events.pagerduty.com/generic/2010-04-15/create_event.json",
+    "method": "POST",
+    "params": { "service_key":  "secret",
+                "incident_key": "incident_secret",
+                "event_type":   "trigger",
+                "description":  "FAILURE for production/HTTP"
+              }
+  },
+  "postageapp": {
+    "api_key":    "secret",
+    "recipients": [ "email@example.com" ]
+  },
+  "onevent": [ "json" ],
+  "checks": "kenkou_check.cfg.example"
+}
