@@ -12,7 +12,7 @@ Currently it assumes port 443 for TLS and also that the given domain resolves to
 
 Designed to be run from a cronjob as often as you want to check the sites.
 
-Note: if you are running kenkou on OS X you will need to export your root certificates using the Keychain Access tool. See https://www.madboa.com/geek/pine-macosx/#openssl for a great write-up on how to do this.
+Note: Kenkou will check to see if the [Certifi](https://certifi.io/en/latest/) Python package is installed, and if so, it will use the CA Bundle from that. If not it will check to see if ```/etc/ssl/certs/ca-certificates.crt``` exists. If neither is found it will exit with an error if a certificate check was requested.
 
 Usage
 -----
@@ -22,17 +22,13 @@ python kenkou.py [-c|--config FILENAME] [--cafile PATH]
 
 Where:
     -c --config  Configuration file (json format)
-    --cafile     Path to your OS root certificate file
 ```
-
-On OS X computers the root certificate file is located at ```/System/Library/OpenSSL/cert.pem``` if you have followed the export instructions given above.
-
-On modern Linux systems it can be found at ```/etc/ssl/certs/ca-certificates.crt```.
 
 Requirements
 ------------
 See requirements.txt for details about what versions to install.
 * requests
+* certifi
 * beautifulsoup4
 * html5lib
 * dnspython
@@ -45,63 +41,37 @@ Example kenkou.cfg file:
 ```json
 { "debug": true,
   "pagerduty": {
-    "url": "https://events.pagerduty.com/generic/2010-04-15/create_event.json",
+    "url":    "https://events.pagerduty.com/generic/2010-04-15/create_event.json",
     "method": "POST",
-    "params": { "service_key": "secrets",
+    "params": { "service_key":  "secret",
                 "incident_key": "incident_secret",
-                "event_type": "trigger",
-                "description": "FAILURE for production/HTTP"
-    }
+                "event_type":   "trigger",
+                "description":  "FAILURE for production/HTTP"
+              }
   },
   "postageapp": {
-    "api_key": "secrets",
-    "recipients": ["email@example.com"]
+    "api_key":    "secret",
+    "recipients": [ "email@example.com" ]
   },
   "onevent": [ "postageapp" ],
-  "verify_https": true,
-  "urls": {
-    "file": "urls_to_check.cfg"
-  },
-  "dns": {
-    "file": "dns_to_check.cfg"
-  }
+  "checks": "things_to_check.cfg"
 }
 ```
-
-The file option allows for multiple sites to be grouped.
 
 urls_to_check.cfg:
 
 ```json
-{
-  "production": {
-    "main":    { "url": "http://127.0.0.1" },
-    "example": { "url": "http://example.com" },
-    "certchk": { "cert": "example.com" }
-  }
+{ "web": { "url":  "http://example.com",
+           "dns":  [ "example.com", "127.0.0.1", 
+                     [ "ns1.dnsimple.com", "ns2.dnsimple.com" ]
+                   ],
+           "cert": "example.com"
+         },
+  "lb": { "url":  "http://lb.example.com",
+          "dns":  [ "lb.example.com", "127.0.0.1", 
+                    [ "ns1.dnsimple.com", "ns2.dnsimple.com" ]
+                  ],
+          "cert": "lb.example.com"
+         }
 }
-```
-
-dns_to_check.cfg:
-
-```json
-{
-  "production": {
-    "main": { "dns": [ "example.com", 
-                       "127.0.0.1", 
-                       [ "ns1.dnsimple.com", "ns2.dnsimple.com" ]
-                     ]
-    }
-  }
-}
-```
-
-The namespace for the Redis option is used to build both the key used to retrieve the
-list of urls and also the keys used to store the last results.
-
-```
-  kenkou:urls_to_check            [ "production" ]
-  kenkou:url.production           [ "main" ]
-  kenkou:url.production.main      { "url": "http://127.0.0.1" }
-  kenkou:result.production.main   200
 ```

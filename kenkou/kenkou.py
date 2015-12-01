@@ -1,16 +1,7 @@
-#!/usr/bin/env python
-
-""" HTTP resource check
-
-    Check that a web site or HTTP resource is alive
-
-    :copyright: (c) 2012-2013 by Mike Taylor
-    :license: BSD 2-Clause
-
-    Assumes Python v2.7+
-
-    Authors:
-        bear    Mike Taylor <bear@bear.im>
+# -*- coding: utf-8 -*-
+"""
+:copyright: (c) 2012-2015 by Mike Taylor
+:license: MIT, see LICENSE for more details.
 """
 
 import os, sys
@@ -21,7 +12,6 @@ import uuid
 import email
 import types
 import socket
-import logging
 import datetime
 import urlparse
 import argparse
@@ -38,58 +28,13 @@ import dns.resolver
 import dns.message
 import dns.query
 
-
-_version_   = u'0.4.6'
-_copyright_ = u'Copyright (c) 2012-2014 Mike Taylor'
-_license_   = u'BSD 2-Clause'
-
-_ourPath = os.getcwd()
-_ourName = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-_usage   = """
-Usage
-    -c --config  Configuration file (json format)
-"""
-
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(_ourName)
-
-
-def normalizeFilename(filename):
-    result = os.path.expanduser(filename)
-    result = os.path.abspath(result)
-    return result
-
-def loadConfig(cfgFilename):
-    result = {}
-    if not os.path.exists(cfgFilename):
-        for cfgpath in configPaths:
-            possibleFile = normalizeFilename(os.path.join(cfgpath, configName))
-            if os.path.exists(possibleFile):
-                result = json.load(open(possibleFile, 'r'))
-                break
-    else:
-        possibleFile = normalizeFilename(cfgFilename)
-        if os.path.exists(possibleFile):
-            result = json.load(open(possibleFile, 'r'))
-    return result
-
-def flatten(source):
-    result     = {}
-    namespaces = []
-    for ns in source:
-        namespaces.append(ns)
-        for site in source[ns]:
-            key = '%s.%s' % (ns, site)
-            result[key] = source[ns][site]
-    return result, namespaces
-
-def pagerDuty(event):
-    if 'method' in config['pagerduty']:
-        method = config['pagerduty']['method']
+def pagerDuty(event, config):
+    if 'method' in config:
+        method = config['method']
     else:
         method = 'POST'
-    if 'params' in config['pagerduty']:
-        params = config['pagerduty']['params']
+    if 'params' in :
+        params = config['params']
 
     log.info('sending trigger request')
 
@@ -108,12 +53,12 @@ def pagerDuty(event):
     except:
         log.exception('Error during failure reporting, exiting')
 
-def postageApp(subject, body):
-    payload = { "api_key":   config['postageapp']['api_key'],
+def postageApp(subject, body, config):
+    payload = { "api_key":   config['api_key'],
                 "uid":       str(uuid.uuid4()),
-                "arguments": { "recipients": config['postageapp']['recipients'],
+                "arguments": { "recipients": config['recipients'],
                                "headers":    { "subject": subject,
-                                               "from":    "kenkou <ops@andyet.net>",
+                                               "from":    "kenkou",
                                              },
                                "content":    { "text/plain": body }
                              }
@@ -142,7 +87,7 @@ but the DNS lookup returned
 %(found)s
 """
 
-def handleEvent(sitename, sitedata, target, status, message):
+def handleEvent(config, sitename, sitedata, target, status, message):
     log.error('Check event for %s (%s) %s: %s' % (sitename, target, status, message))
 
     subject = "Kenkou Site Check Failed for %s" % sitename
@@ -159,11 +104,11 @@ def handleEvent(sitename, sitedata, target, status, message):
 
     for item in config['onevent']:
         if item == 'postageapp':
-            log.debug('event sent to PostageApp: %s' % postageApp(subject, body))
+            log.debug('event sent to PostageApp: %s' % postageApp(subject, body, config['postageapp']))
         elif item == 'pagerduty':
-            log.debug('event sent to pagerDuty: %s' % pagerDuty(data))
+            log.debug('event sent to pagerDuty: %s' % pagerDuty(data, config['pagerduty']))
 
-def handleDNSEvent(sitename, ip, nameservers, found):
+def handleDNSEvent(config, sitename, ip, nameservers, found):
     log.error('Check event for %s' % sitename)
 
     subject = "Kenkou DNS Check Failed for %s" % sitename
@@ -180,9 +125,9 @@ def handleDNSEvent(sitename, ip, nameservers, found):
 
     for item in config['onevent']:
         if item == 'postageapp':
-            log.debug('event sent to PostageApp: %s' % postageApp(subject, body))
+            log.debug('event sent to PostageApp: %s' % postageApp(subject, body, config))
         elif item == 'pagerduty':
-            log.debug('event sent to pagerDuty: %s' % pagerDuty(data))
+            log.debug('event sent to pagerDuty: %s' % pagerDuty(data, config))
 
 def hasURL(tag):
     for item in ('href', 'cite', 'background', 'action', 'profile', 'src', 
@@ -357,7 +302,7 @@ def pyopenssl_check_callback(connection, x509, errnum, errdepth, ok):
         return False
     return ok
 
-def checkCertificate(sitename, sitedata):
+def checkCertificate(config, sitename, sitedata):
     domain = bytes(sitedata['cert'])
     errors = []
 
@@ -409,126 +354,4 @@ def checkCertificate(sitename, sitedata):
     if len(errors) > 0:
         msg = 'Certificate verification for the site has failed with the following errors:'
         msg += '\n    '.join(errors)
-        handleEvent(sitename, sitedata, domain, None, msg)
-
-# talky.static {u'url': u'http://static.talky.io/readme'}
-def checkURLS(sitename, sitedata, verifyHTTPS=False):
-    log.debug('checking URL for %s' % sitename)
-    if 'url' in sitedata:
-        url = sitedata['url']
-
-        try:
-            r = requests.get(url, verify=verifyHTTPS)
-            if url != r.url:
-                log.debug('URL was redirected, processing last URL handled')
-            log.debug('%s responded with %s' % (r.url, r.status_code))
-
-            if r.status_code != 200:
-                handleEvent(sitename, sitedata, url, r.status_code, r.text)
-            else:
-                mixed = checkMixedContent(r)
-                if len(mixed) > 0:
-                    s = 'Mixed Content URLs found within the site\n'
-                    for url in mixed:
-                        s += '    %s\n' % url
-                    handleEvent(sitename, sitedata, url, r.status_code, s)
-
-        except (requests.exceptions.RequestException, 
-                requests.exceptions.ConnectionError,
-                requests.exceptions.HTTPError,
-                requests.exceptions.URLRequired,
-                requests.exceptions.TooManyRedirects) as e:
-            handleEvent(sitename, sitedata, url, None, e.message)
-
-def checkDNS(sitename, sitedata):
-    log.debug('checking DNS for %s' % sitename)
-    if 'dns' in sitedata:
-        domain, ip, nameservers = sitedata['dns']
-
-        ips = []
-        ns  = []
-
-        for a in dns.resolver.query(domain):
-            ips.append(a.to_text())
-
-        q = dns.message.make_query(domain, dns.rdatatype.NS)
-        m = dns.query.udp(q, '8.8.8.8')
-
-        k = m.index.keys()[0]
-        for i in m.index[k]:
-            ns.append(i.to_text())
-
-        if ip not in ips:
-            handleDNSEvent(sitename, ip, None, ips)
-
-        for s in nameservers:
-            for t in ns:
-                if t.startswith(s):
-                    ns.remove(t)
-
-        if len(ns) > 0:
-            handleDNSEvent(sitename, None, nameservers, ns)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--config', default='%s.cfg' % _ourName)
-    parser.add_argument('--cafile', default='/etc/ssl/certs/ca-certificates.crt')
-
-    args   = parser.parse_args()
-    config = loadConfig(args.config)
-
-    if config['debug']:
-        log.setLevel(logging.DEBUG)
-
-    if 'cafile' not in config:
-        config['cafile'] = args.cafile
-
-    log.info('Starting')
-
-    if config['urls'] is None:
-        log.error('URLs configuration item is required, exiting')
-        sys.exit(2)
-
-    urls       = {}
-    namespaces = []
-    for k in config['urls']:
-        if k == 'file':
-            try:
-                fUrls = json.loads(' '.join(open(config['urls'][k], 'r').readlines()))
-                for key in fUrls:
-                    urls[key] = fUrls[key]
-            except:
-                log.exception('unable to load url list from %s' % config['urls'][k])
-        elif k == 'redis':
-            log.warning('redis is not handled currently')
-        else:
-            log.error('Unknown URL entry [%s]' % k)
-
-    urls, namespaces = flatten(urls)
-    for key in urls.keys():
-        if 'cert' in urls[key]:
-            checkCertificate(key, urls[key])
-        else:
-            if 'verify_https' in config:
-                verify = config['verify_https']
-            else:
-                verify = False
-            checkURLS(key, urls[key], verify)
-
-    dnsitems   = {}
-    namespaces = []
-    for k in config['dns']:
-        if k == 'file':
-            try:
-                fDNS = json.loads(' '.join(open(config['dns'][k], 'r').readlines()))
-                for key in fDNS:
-                    dnsitems[key] = fDNS[key]
-            except:
-                log.exception('unable to load dns list from %s' % config['dns'][k])
-        else:
-            log.error('Unknown URL entry [%s]' % k)
-
-    dnsitems, namespaces = flatten(dnsitems)
-    for key in dnsitems.keys():
-        checkDNS(key, dnsitems[key])
+        handleEvent(config, sitename, sitedata, domain, None, msg)

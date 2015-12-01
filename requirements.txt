@@ -1,7 +1,8 @@
-pyOpenSSL>=0.14
+pyOpenSSL>=0.15.1
 dnspython>=1.12
-requests>=2.4.3
+requests>=2.8.1
+certifi>=2015.11.20.1
 beautifulsoup4>=4.3.2
-html5lib>=0.999
-pyasn1>=0.1.7
-pyasn1-modules>=0.0.5
+html5lib>=0.9999999
+pyasn1>=0.1.9
+pyasn1-modules>=0.0.8
