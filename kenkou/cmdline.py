@@ -7,22 +7,23 @@ from __future__ import print_function
 """
 
 import os, sys
-import log
+import json
+import logging
 import argparse
 
-from kenkou.dnscheck import checkDNS
-from kenkou.urlcheck import checkURLS
-from kenkou.certcheck import checkCerts
+from .urlcheck import checkURL
+from .certcheck import checkCert
+from .dnscheck import checkDNS
 
 
-_usage   = """
+_usage = """
 Usage
     -c --config  Configuration file (JSON format)
 
 Returns a JSON blob of results emitted to STDOUT
 """
 
-def loadConfig(cfgFilename=None, possibleConfigFiles):
+def loadConfig(cfgFilename, possibleConfigFiles):
   result = {}
 
   if cfgFilename is None:
@@ -57,13 +58,13 @@ def main(config=None, checks=None):
     config = loadConfig(args.config, possibleConfigFiles)
 
   # set debug level for any modules that honour it
-  if config['debug']:
-    log.setLevel(logging.DEBUG)
+  if 'debug' in config and config['debug']:
+    logging.getLogger().setLevel(logging.DEBUG)
 
   if 'cafile' not in config:
-    config['cafile'] = args.cafile
+    config['cafile'] = None
 
-  if checks is None:
+  if checks is None and 'checks' in config:
     checks = json.loads(' '.join(open(config['checks'], 'r').readlines()))
 
   if checks is None:
@@ -73,8 +74,8 @@ def main(config=None, checks=None):
   for namespace in checks.keys():
     data = checks[namespace]
     if 'cert' in data:
-      checkCert(namespace, data['cert'], config['cafile'], config['debug'])
+      checkCert(namespace, data['cert'], config['cafile'])
     elif 'dns' in data:
-      checkDNS(namespace, data['dns'], config['debug'])
+      checkDNS(namespace, data['dns'])
     elif 'url' in data:
-      checkURL(namespace, data['url'], config['debug'])
+      checkURL(namespace, data['url'])

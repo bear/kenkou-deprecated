@@ -146,7 +146,7 @@ def pyopenssl_check_callback(connection, x509, errnum, errdepth, ok):
     return False
   return ok
 
-def checkCert(namespace, domain, cafile=None, debug=False):
+def checkCert(namespace, domain, cafile=None):
   events = []
 
   try:
@@ -155,8 +155,6 @@ def checkCert(namespace, domain, cafile=None, debug=False):
 
     if cafile is None:
       cafile = where()
-    if debug:
-      print('%s: Certificates check for %s' % (namespace, domain))
     try:
       socket.getaddrinfo(domain, 443)[0][4][0]
       sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

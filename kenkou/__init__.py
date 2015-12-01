@@ -13,6 +13,6 @@ __url__          = 'https://github.com/bear/kenkou'
 __download_url__ = 'https://pypi.python.org/pypi/kenkou'
 __description__  = 'A python based tool to check that a given resource (URL, Certificate and DNS entry) is alive and valid.'
 
-# from dnscheck import checkDNS
+from dnscheck import checkDNS
 from urlcheck import checkURL
 from certcheck import checkCert

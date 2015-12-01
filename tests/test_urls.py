@@ -7,15 +7,15 @@ from kenkou.urlcheck import checkURL
 
 class TestSimpleURL(unittest.TestCase):
     def runTest(self):
-      assert [] == checkURL('test', 'http://bear.im', False)
+      assert [] == checkURL('test', 'http://bear.im')
 
 class TestSecureURL(unittest.TestCase):
     def runTest(self):
-      assert [] == checkURL('test', 'https://bear.im', False)
+      assert [] == checkURL('test', 'https://bear.im')
 
 class TestBadSecureURL(unittest.TestCase):
     def runTest(self):
-      r = checkURL('test', 'https://expired.badssl.com', False)
+      r = checkURL('test', 'https://expired.badssl.com')
       assert r[0]['status_code'] == 0
       assert r[0]['url']         == 'https://expired.badssl.com'
       assert r[0]['namespace']   == 'test'
@@ -31,7 +31,7 @@ The body from the request was:
 <p>The requested URL was not found on the server.  If you entered the URL manually please check your spelling and try again.</p>
 
 """
-      r = checkURL('test', 'http://bear.im/42', False)
+      r = checkURL('test', 'http://bear.im/42')
       assert r[0]['status_code'] == 404
       assert r[0]['url']         == 'http://bear.im/42'
       assert r[0]['namespace']   == 'test'

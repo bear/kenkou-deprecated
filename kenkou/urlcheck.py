@@ -106,38 +106,25 @@ def checkMixedContent(response):
 
   return mixed
 
-def checkURL(namespace, url, debug=False):
+def checkURL(namespace, url):
   events = []
   try:
-    if debug:
-      print('%s: checking URL %s' % (namespace, url))
+      r = requests.get(url, verify=True)
+      if r.status_code != 200:
+          events.append(handleEvent(namespace, url, r.status_code, r.text ))
+      else:
+          mixed = checkMixedContent(r)
+          if len(mixed) > 0:
+              s = 'Mixed Content URLs found.\n'
+              for url in mixed:
+                  s += '    %s\n' % url
+              events.append(handleEvent(namespace, url, r.status_code, s ))
 
-    try:
-        r = requests.get(url, verify=True)
-        if debug:
-          if url != r.url:
-            print('%s: URL was redirected, processing last URL handled' % namespace)
-          print('%s: %s %s' % (namespace, r.status_code, r.url))
-
-        if r.status_code != 200:
-            events.append(handleEvent(namespace, url, r.status_code, r.text ))
-        else:
-            mixed = checkMixedContent(r)
-            if len(mixed) > 0:
-                s = 'Mixed Content URLs found.\n'
-                for url in mixed:
-                    s += '    %s\n' % url
-                events.append(handleEvent(namespace, url, r.status_code, s ))
-
-    except (requests.exceptions.RequestException, 
-            requests.exceptions.ConnectionError,
-            requests.exceptions.HTTPError,
-            requests.exceptions.URLRequired,
-            requests.exceptions.TooManyRedirects) as e:
-        events.append(handleEvent(namespace, url, 0, e.message ))
-  except Exception as e:
-    print('Exception during URL check for %s' % namespace, e, file=sys.stderr)
-
-  print(events)
+  except (requests.exceptions.RequestException, 
+          requests.exceptions.ConnectionError,
+          requests.exceptions.HTTPError,
+          requests.exceptions.URLRequired,
+          requests.exceptions.TooManyRedirects) as e:
+      events.append(handleEvent(namespace, url, 0, e.message ))
 
   return events
