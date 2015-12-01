@@ -21,6 +21,12 @@ from pyasn1.type.char import IA5String
 from pyasn1.type.univ import ObjectIdentifier
 from pyasn1_modules.rfc2459 import GeneralNames
 
+try:
+  from certifi import where
+except ImportError:
+  def where():
+    return '/etc/ssl/certs/ca-certificates.crt'
+
 
 _error =  """Kenkou has discovered an issue with the %(namespace)s Certificate check for the domain %(domain)s
 The errors found were:
@@ -140,13 +146,15 @@ def pyopenssl_check_callback(connection, x509, errnum, errdepth, ok):
     return False
   return ok
 
-def checkCert(namespace, domain, cafile, debug=False):
+def checkCert(namespace, domain, cafile=None, debug=False):
   events = []
 
   try:
     errors = []
     domain = domain.replace('https://', '').replace('http://', '')
 
+    if cafile is None:
+      cafile = where()
     if debug:
       print('%s: Certificates check for %s' % (namespace, domain))
     try:

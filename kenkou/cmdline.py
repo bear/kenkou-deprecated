@@ -42,8 +42,7 @@ def main(config=None, checks=None):
   if config is None:
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', default=None)
-    parser.add_argument('--cafile', default='/etc/ssl/certs/ca-certificates.crt')
-
+    parser.add_argument('--cafile', default=None)
     args = parser.parse_args()
 
     cfgFilenames = ('kenkou.cfg', '.kenkou.cfg')
