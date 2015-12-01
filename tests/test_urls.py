@@ -6,33 +6,36 @@ from kenkou.urlcheck import checkURL
 
 
 class TestSimpleURL(unittest.TestCase):
-    def runTest(self):
-      assert [] == checkURL('test', 'http://bear.im')
+  def runTest(self):
+    r = checkURL('test', 'http://bear.im')
+    assert 'check' in r.keys()
+    assert r['check']    == 'url'
+    assert len(r.keys()) == 1
 
 class TestSecureURL(unittest.TestCase):
-    def runTest(self):
-      assert [] == checkURL('test', 'https://bear.im')
+  def runTest(self):
+    r = checkURL('test', 'https://bear.im')
+    assert 'check' in r.keys()
+    assert r['check']    == 'url'
+    assert len(r.keys()) == 1
 
 class TestBadSecureURL(unittest.TestCase):
-    def runTest(self):
-      r = checkURL('test', 'https://expired.badssl.com')
-      assert r[0]['status_code'] == 0
-      assert r[0]['url']         == 'https://expired.badssl.com'
-      assert r[0]['namespace']   == 'test'
+  def runTest(self):
+    r = checkURL('test', 'https://expired.badssl.com')
+    assert 'check' in r.keys()
+    assert len(r.keys())    == 6
+    assert r['check']       == 'url'
+    assert r['status_code'] == 0
+    assert r['url']         == 'https://expired.badssl.com'
+    assert r['namespace']   == 'test'
 
 class TestBadURL(unittest.TestCase):
-    def runTest(self):
-      body = """Kenkou has discovered an issue with the site test URL http://bear.im/42
-The request for the site returned 404
-The body from the request was:
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
-<title>404 Not Found</title>
-<h1>Not Found</h1>
-<p>The requested URL was not found on the server.  If you entered the URL manually please check your spelling and try again.</p>
-
-"""
-      r = checkURL('test', 'http://bear.im/42')
-      assert r[0]['status_code'] == 404
-      assert r[0]['url']         == 'http://bear.im/42'
-      assert r[0]['namespace']   == 'test'
-      assert r[0]['body']        == body
+  def runTest(self):
+    r = checkURL('test', 'http://bear.im/42')
+    assert 'check' in r.keys()
+    assert len(r.keys())    == 6
+    assert r['check']       == 'url'
+    assert r['status_code'] == 404
+    assert r['url']         == 'http://bear.im/42'
+    assert r['namespace']   == 'test'
+    assert r['errors']      == 'The given URL http://bear.im/42 returned a status code of 404'

@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-
 """
 :copyright: (c) 2012-2015 by Mike Taylor
 :license: MIT, see LICENSE for more details.
@@ -13,28 +11,20 @@ import requests
 from bs4 import BeautifulSoup, SoupStrainer
 
 
-
-_exception = """Kenkou has run into a problem checking the %(namespace)s URL %(url)s
-The exception raised during the attempt to reach the site was:
-%(msg)s
-"""
 _error =  """Kenkou has discovered an issue with the site %(namespace)s URL %(url)s
-The request for the site returned %(status_code)s
-The body from the request was:
-%(msg)s
+The errors that were found are:
+%(errors)s
 """
 
-def handleEvent(namespace, url, status_code, msg):
-  event = { 'namespace': namespace,
+def handleEvent(namespace, url, status_code, errors):
+  event = { 'check': 'url',
+            'namespace': namespace,
             'url': url,
             'status_code': status_code,
-            'msg': msg,
+            'errors': '\n'.join(errors),
             'body': ''
           }
-  if status_code == 0:
-    event['body'] = _exception % event
-  else:
-    event['body'] = _error % event
+  event['body'] = _error % event
   return event
 
 def hasURL(tag):
@@ -107,24 +97,30 @@ def checkMixedContent(response):
   return mixed
 
 def checkURL(namespace, url):
-  events = []
+  result = { 'check': 'url' }
+  errors = []
+  status_code = 0
   try:
       r = requests.get(url, verify=True)
+      status_code = r.status_code
       if r.status_code != 200:
-          events.append(handleEvent(namespace, url, r.status_code, r.text ))
+          errors.append('The given URL %s returned a status code of %s' % (url, r.status_code))
       else:
           mixed = checkMixedContent(r)
           if len(mixed) > 0:
-              s = 'Mixed Content URLs found.\n'
-              for url in mixed:
-                  s += '    %s\n' % url
-              events.append(handleEvent(namespace, url, r.status_code, s ))
+              s = 'The given URL %s contains the following Mixed Content URLs: '
+              for u in mixed:
+                  s += '%s,' % u
+              errors.append(s[:-1])
 
   except (requests.exceptions.RequestException, 
           requests.exceptions.ConnectionError,
           requests.exceptions.HTTPError,
           requests.exceptions.URLRequired,
           requests.exceptions.TooManyRedirects) as e:
-      events.append(handleEvent(namespace, url, 0, e.message ))
+      errors.append('The given URL %s generated an exception: %s' % (url, e.message ))
 
-  return events
+  if len(errors) > 0:
+    result = handleEvent(namespace, url, status_code, errors)
+
+  return result

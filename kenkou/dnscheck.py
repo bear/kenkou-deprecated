@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-
 """
 :copyright: (c) 2012-2015 by Mike Taylor
 :license: MIT, see LICENSE for more details.
@@ -13,38 +11,26 @@ import dns.message
 import dns.query
 
 
-_exception = """Kenkou has run into a problem checking the DNS for %(namespace)s.
-The exception raised during the attempt to reach the site was:
-%(msg)s
-"""
-_IPerror =  """Kenkou has discovered an issue with the %(namespace)s IP returned for %(domain)s.
-The IP address should be %(ip)s but the DNS Query returned %(found)s
-"""
-_NSerror =  """Kenkou has discovered an issue with the %(namespace)s name server list for %(namespace)s.
-The nameserver list should be:
-%(nameservers)s
-but the DNS lookup returned
-%(found)s
+_error = """Kenkou has discovered an issue with the DNS check for %(namespace)s.
+The errors that were found are:
+%(errors)s
 """
 
-def handleEvent(namespace, domain, ip, nameservers, found):
-  event = { 'namespace': namespace,
+def handleEvent(namespace, domain, ip, nameservers, errors):
+  event = { 'check': 'dns',
+            'namespace': namespace,
             'domain': domain,
             'ip': ip,
             'nameservers': nameservers,
-            'found': found,
+            'errors': '\n'.join(errors),
             'body': ''
           }
-
-  if ip is None:
-    event['body'] = _NSerror % event
-  else:
-    event['body'] = _IPerror % event
-
+  event['body'] = _error % event
   return event
 
 def checkDNS(namespace, data):
-  events = []
+  result = { 'check': 'dns' }
+  errors = []
   try:
     domain, ip, nameservers = data
     ips = []
@@ -62,7 +48,7 @@ def checkDNS(namespace, data):
       ns.append(t.split()[-1][:-1])
 
     if ip not in ips:
-      events.append(handleEvent(namespace, domain, ip, None, ips))
+      errors.append('The given ip address %s was not found in the DNS response: %s' % (ip, ips))
 
     for s in nameservers:
       for t in ns:
@@ -70,9 +56,12 @@ def checkDNS(namespace, data):
           ns.remove(t)
 
     if len(ns) > 0:
-      events.append(handleEvent(namespace, domain, None, nameservers, ns))
+      errors.append('The given list of nameservers does not match the DNS response: %s' % ','.join(ns))
 
   except Exception as e:
-    print('Exception during DNS check for %s' % namespace, e, file=sys.stderr)
+    errors.append('An exception was raised during the DNS check: %s' % e.message)
 
-  return events
+  if len(errors) > 0:
+    result = handleEvent(namespace, domain, ip, nameservers, errors)
+
+  return result

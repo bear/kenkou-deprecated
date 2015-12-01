@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-
 """
 :copyright: (c) 2012-2015 by Mike Taylor
 :license: MIT, see LICENSE for more details.
@@ -29,12 +27,13 @@ except ImportError:
 
 
 _error =  """Kenkou has discovered an issue with the %(namespace)s Certificate check for the domain %(domain)s
-The errors found were:
+The errors that were found are:
 %(errors)s
 """
 
 def handleEvent(namespace, domain, errors):
-  event = { 'namespace': namespace,
+  event = { 'check': 'cert',
+            'namespace': namespace,
             'domain': domain,
             'errors': '\n'.join(errors),
             'body': ''
@@ -147,10 +146,9 @@ def pyopenssl_check_callback(connection, x509, errnum, errdepth, ok):
   return ok
 
 def checkCert(namespace, domain, cafile=None):
-  events = []
-
+  result = { 'check': 'cert' }
+  errors = []
   try:
-    errors = []
     domain = domain.replace('https://', '').replace('http://', '')
 
     if cafile is None:
@@ -191,17 +189,17 @@ def checkCert(namespace, domain, cafile=None):
           finally:
             ssl_sock.shutdown()
         except SSL.Error as e:
-          errors.append('SSL.Error: %s' % e)
+          errors.append('SSL.Error: %s' % e.message)
         finally:
           sock.close()
       except socket.error as e:
-        errors.append('Socket Error: %s' % e)
+        errors.append('Socket Error: %s' % e.message)
     except socket.gaierror as e:
-        errors.append('Socket GAIError: %s' % e)
-
-    if len(errors) > 0:
-      events.append(handleEvent(namespace, domain, errors))
+        errors.append('Socket GAIError: %s' % e.message)
   except Exception as e:
-    print('Exception during Certificate check for %s' % namespace, e, file=sys.stderr)
+    errors.append('Exception during Certificate check: %s' % e.message)
 
-  return events
+  if len(errors) > 0:
+    result = handleEvent(namespace, domain, errors)
+
+  return result
