@@ -12,6 +12,7 @@ ns     = [ 'ns1.dnsimple.com', 'ns2.dnsimple.com',
 class TestIPLookup(unittest.TestCase):
   def runTest(self):
     r = checkDNS('test', ( domain, ip, ns))
+    print len(r), r
     assert 'check' in r.keys()
     assert r['check']    == 'dns'
     assert len(r.keys()) == 1
