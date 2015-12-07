@@ -12,10 +12,10 @@ ns     = [ 'ns1.dnsimple.com', 'ns2.dnsimple.com',
 class TestIPLookup(unittest.TestCase):
   def runTest(self):
     r = checkDNS('test', ( domain, ip, ns))
-    print len(r), r
     assert 'check' in r.keys()
     assert r['check']    == 'dns'
-    assert len(r.keys()) == 1
+    assert len(r.keys()) == 7
+    assert r['ip']       == ip
 
 class TestWrongIP(unittest.TestCase):
   def runTest(self):
@@ -23,7 +23,8 @@ class TestWrongIP(unittest.TestCase):
     assert 'check' in r.keys()
     assert r['check']    == 'dns'
     assert len(r.keys()) == 7
-    assert r['errors']   == "The given ip address 127.0.0.1 was not found in the DNS response: ['91.121.16.171']"
+    assert '127.0.0.1' in r['errors']
+    assert 'was not found in the DNS response' in r['errors']
 
 
 class TestWrongNS(unittest.TestCase):
