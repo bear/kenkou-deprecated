@@ -74,7 +74,7 @@ def main(config=None, checks=None):
     if 'cert' in data:
       r.append(checkCert(data['cert'], config['cafile']))
     if 'dns' in data:
-      r.append(checkDNS(data['dns']))
+      r.append(checkDNS(**data['dns']))
     if 'url' in data:
       r.append(checkURL(data['url']))
 
