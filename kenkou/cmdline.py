@@ -67,7 +67,7 @@ def main(config=None, checks=None):
     checks = json.loads(' '.join(open(config['checks'], 'r').readlines()))
   else:
     checks = {}
-  
+
   checkItems = []
   if len(args.args) > 0:
     for item in args.args:
@@ -80,7 +80,7 @@ def main(config=None, checks=None):
     sys.exit(2)
 
   results = []
-  
+
   for namespace in checkItems:
     if namespace in checks:
       data = checks[namespace]
