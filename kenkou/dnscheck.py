@@ -21,11 +21,14 @@ def checkDNS(domain, ip, nameservers):
 
     q = dns.message.make_query(domain, dns.rdatatype.NS)
     m = dns.query.udp(q, '8.8.8.8')
-    k = m.index.keys()[1]
-    s = m.index[k].to_text()
-    for t in s.split('\n'):
-      # code-bear.com. 899 IN NS ns1.hover.com.
-      ns.append(t.split()[-1][:-1])
+    for k in m.index.keys():
+      s = m.index[k].to_text()
+      for t in s.split('\n'):
+        # bear.im. 1704 IN NS ns1.dnsimple.com.
+        # bear.im. IN NS
+        l = t.split()
+        if len(l) == 5 and l[3] == 'NS':
+          ns.append(t.split()[-1][:-1])
 
     if ip not in ips:
       errors.append('The given ip address %s was not found in the DNS response: %s' % (ip, ips))
