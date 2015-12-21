@@ -21,6 +21,7 @@ dev: init
 	pip install --upgrade -e .
 
 lint:
+	@rm violations.flake8.txt
 	flake8 kenkou > violations.flake8.txt
 
 test:
@@ -36,6 +37,6 @@ clean:
 build: check
 	python setup.py sdist
 
-check:
+check: test lint
 	check-manifest
 	python setup.py check

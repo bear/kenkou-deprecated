@@ -4,6 +4,8 @@
 *.cfg
 *.log
 
+violations.flake8.txt
+
 .python-version
 
 # Packages
