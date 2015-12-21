@@ -18,10 +18,14 @@ Usage
 -----
 
 ```
-python kenkou.py [-c|--config FILENAME]
+python kenkou.py [--config FILE] [--checks FILE] [--cafile FILE] [list,of,namespaces]
 
 Where:
-    -c --config  Configuration file (json format)
+    --config  Configuration file (JSON format)
+    --checks  Checks to run (JSON format)
+    --cafile  ca-certificates file
+
+    [list,of,namespaces] optional list of which namespaces to process
 
 The output is a based on the value of the "onevent" configuration key:
   "json" (default if not present)
@@ -60,15 +64,17 @@ kenkou_check.cfg:
 
 ```json
 { "web": { "url":  "https://example.com",
-           "dns":  [ "example.com", "127.0.0.1", 
-                     [ "ns1.dnsimple.com", "ns2.dnsimple.com" ]
-                   ],
+           "dns":  { "domain": "example.com",
+                     "ip": "127.0.0.1",
+                     "namespaces": [ "ns1.dnsimple.com", "ns2.dnsimple.com" ]
+                   },
            "cert": "example.com"
          },
   "lb": { "url":  "http://lb.example.com",
-          "dns":  [ "lb.example.com", "127.0.0.1", 
-                    [ "ns1.dnsimple.com", "ns2.dnsimple.com" ]
-                  ],
+          "dns":  { "domain": "lb.example.com",
+                    "ip": "127.0.0.1", 
+                    "namespaces": [ "ns1.dnsimple.com", "ns2.dnsimple.com" ]
+                  },
           "cert": "lb.example.com"
          }
 }
