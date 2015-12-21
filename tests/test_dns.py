@@ -11,26 +11,17 @@ ns     = [ 'ns1.dnsimple.com', 'ns2.dnsimple.com',
 
 class TestIPLookup(unittest.TestCase):
   def runTest(self):
-    r = checkDNS('test', ( domain, ip, ns))
-    assert 'check' in r.keys()
-    assert r['check']    == 'dns'
-    assert len(r.keys()) == 7
-    assert r['ip']       == ip
+    r = checkDNS(domain, ip, ns)
+    assert len(r) == 0
 
 class TestWrongIP(unittest.TestCase):
   def runTest(self):
-    r = checkDNS('test', ( domain, '127.0.0.1', ns ))
-    assert 'check' in r.keys()
-    assert r['check']    == 'dns'
-    assert len(r.keys()) == 7
-    assert '127.0.0.1' in r['errors']
-    assert 'was not found in the DNS response' in r['errors']
-
+    r = checkDNS(domain, '127.0.0.1', ns)
+    assert len(r) == 1
+    assert 'was not found in the DNS response' in r[0]
 
 class TestWrongNS(unittest.TestCase):
   def runTest(self):
-    r = checkDNS('test', ( domain, ip, ['ns.wrong.com']))
-    assert 'check' in r.keys()
-    assert r['check']    == 'dns'
-    assert len(r.keys()) == 7
-    assert r['errors']   == 'The given list of nameservers does not match the DNS response: ns1.dnsimple.com,ns2.dnsimple.com,ns3.dnsimple.com,ns4.dnsimple.com'
+    r = checkDNS(domain, ip, ['ns.wrong.com'])
+    assert len(r) == 1
+    assert 'The given list of nameservers does not match the DNS response: ns1.dnsimple.com,ns2.dnsimple.com,ns3.dnsimple.com,ns4.dnsimple.com' in r[0]

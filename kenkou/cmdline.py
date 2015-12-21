@@ -70,13 +70,16 @@ def main(config=None, checks=None):
   results = []
   for namespace in checks.keys():
     data = checks[namespace]
+    r = []
     if 'cert' in data:
-      results.append(checkCert(namespace, data['cert'], config['cafile']))
+      r.append(checkCert(data['cert'], config['cafile']))
     if 'dns' in data:
-      results.append(checkDNS(namespace, data['dns']))
+      r.append(checkDNS(data['dns']))
     if 'url' in data:
-      results.append(checkURL(namespace, data['url']))
+      r.append(checkURL(data['url']))
 
+    results.append({ namespace: r })
+    
   if 'json' in config['onevent']:
     print(json.dumps(results, indent=2))
 

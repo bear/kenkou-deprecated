@@ -11,22 +11,6 @@ import requests
 from bs4 import BeautifulSoup, SoupStrainer
 
 
-_error =  """Kenkou has discovered an issue with the site %(namespace)s URL %(url)s
-The errors that were found are:
-%(errors)s
-"""
-
-def handleEvent(namespace, url, status_code, errors):
-  event = { 'check': 'url',
-            'namespace': namespace,
-            'url': url,
-            'status_code': status_code,
-            'errors': '\n'.join(errors),
-            'body': ''
-          }
-  event['body'] = _error % event
-  return event
-
 def hasURL(tag):
   for item in ('href', 'cite', 'background', 'action', 'profile', 'src', 
                'longdesc', 'data', 'usemap', 'codebase', 'classid',
@@ -96,13 +80,10 @@ def checkMixedContent(response):
 
   return mixed
 
-def checkURL(namespace, url):
-  result = { 'check': 'url' }
+def checkURL(url):
   errors = []
-  status_code = 0
   try:
       r = requests.get(url, verify=True)
-      status_code = r.status_code
       if r.status_code != 200:
           errors.append('The given URL %s returned a status code of %s' % (url, r.status_code))
       else:
@@ -120,7 +101,4 @@ def checkURL(namespace, url):
           requests.exceptions.TooManyRedirects) as e:
       errors.append('The given URL %s generated an exception: %s' % (url, e.message ))
 
-  if len(errors) > 0:
-    result = handleEvent(namespace, url, status_code, errors)
-
-  return result
+  return errors

@@ -11,31 +11,11 @@ import dns.message
 import dns.query
 
 
-_error = """Kenkou has discovered an issue with the DNS check for %(namespace)s.
-The errors that were found are:
-%(errors)s
-"""
-
-def handleEvent(namespace, domain, ip, nameservers, errors):
-  event = { 'check': 'dns',
-            'namespace': namespace,
-            'domain': domain,
-            'ip': ip,
-            'nameservers': nameservers,
-            'errors': '\n'.join(errors),
-            'body': ''
-          }
-  event['body'] = _error % event
-  return event
-
-def checkDNS(namespace, data):
-  result = { 'check': 'dns' }
+def checkDNS(domain, ip, nameservers):
+  ips    = []
+  ns     = []
   errors = []
   try:
-    domain, ip, nameservers = data
-    ips = []
-    ns  = []
-
     for a in dns.resolver.query(domain):
       ips.append(a.to_text())
 
@@ -61,7 +41,4 @@ def checkDNS(namespace, data):
   except Exception as e:
     errors.append('An exception was raised during the DNS check: %s' % e.message)
 
-  if len(errors) > 0:
-    result = handleEvent(namespace, domain, ip, nameservers, errors)
-
-  return result
+  return errors

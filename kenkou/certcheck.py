@@ -26,21 +26,6 @@ except ImportError:
     return '/etc/ssl/certs/ca-certificates.crt'
 
 
-_error =  """Kenkou has discovered an issue with the %(namespace)s Certificate check for the domain %(domain)s
-The errors that were found are:
-%(errors)s
-"""
-
-def handleEvent(namespace, domain, errors):
-  event = { 'check': 'cert',
-            'namespace': namespace,
-            'domain': domain,
-            'errors': '\n'.join(errors),
-            'body': ''
-          }
-  event['body'] = _error % event
-  return event
-
 # _dnsname_match() and match_hostname() are from Python 3
 # code and modified to work with pyOpenSSL objects
 
@@ -145,8 +130,7 @@ def pyopenssl_check_callback(connection, x509, errnum, errdepth, ok):
     return False
   return ok
 
-def checkCert(namespace, domain, cafile=None):
-  result = { 'check': 'cert' }
+def checkCert(domain, cafile=None):
   errors = []
   try:
     domain = domain.replace('https://', '').replace('http://', '')
@@ -154,7 +138,6 @@ def checkCert(namespace, domain, cafile=None):
     if cafile is None:
       cafile = where()
     try:
-      socket.getaddrinfo(domain, 443)[0][4][0]
       sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       try:
         sock.connect((domain, 443))
@@ -199,7 +182,4 @@ def checkCert(namespace, domain, cafile=None):
   except Exception as e:
     errors.append('Exception during Certificate check: %s' % e.message)
 
-  if len(errors) > 0:
-    result = handleEvent(namespace, domain, errors)
-
-  return result
+  return errors

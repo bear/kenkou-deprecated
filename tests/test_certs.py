@@ -6,49 +6,30 @@ from kenkou import checkCert
 
 class TestGoodCert(unittest.TestCase):
   def runTest(self):
-    r = checkCert('test', 'bear.im')
-    assert 'check' in r.keys()
-    assert r['check']    == 'cert'
-    assert len(r.keys()) == 1
+    r = checkCert('bear.im')
+    assert len(r) == 0
 
 class TestExpiredCert(unittest.TestCase):
   def runTest(self):
-    s = 'get_peer_certificate attempt: Certificate COMODO RSA Domain Validation Secure Server CA has expired!'
-    r = checkCert('test', 'expired.badssl.com')
-    assert 'check' in r.keys()
-    assert r['check']     == 'cert'
-    assert len(r.keys())  == 5
-    assert r['domain']    == 'expired.badssl.com'
-    assert r['namespace'] == 'test'
-    assert r['errors']    == s
+    r = checkCert('expired.badssl.com')
+    assert len(r) == 1
+    assert 'get_peer_certificate attempt: Certificate COMODO RSA Domain Validation Secure Server CA has expired!' in r[0]
 
 class TestSelfSignedCert(unittest.TestCase):
   def runTest(self):
-    r = checkCert('test', 'self-signed.badssl.com')
-    assert 'check' in r.keys()
-    assert r['check']     == 'cert'
-    assert len(r.keys())  == 5
-    assert r['domain']    == 'self-signed.badssl.com'
-    assert r['namespace'] == 'test'
-    assert 'certificate verify failed' in r['errors']
+    r = checkCert('self-signed.badssl.com')
+    assert len(r) == 1
+    assert 'certificate verify failed' in r[0]
 
 class TestWrongHostCert(unittest.TestCase):
   def runTest(self):
-    s = 'Hostname does not match'
-    r = checkCert('test', 'wrong.host.badssl.com')
-    assert 'check' in r.keys()
-    assert r['check']     == 'cert'
-    assert len(r.keys())  == 5
-    assert r['domain']    == 'wrong.host.badssl.com'
-    assert r['namespace'] == 'test'
-    assert r['errors']    == s
+    r = checkCert('wrong.host.badssl.com')
+    assert len(r) == 1
+    assert 'Hostname does not match' in r[0]
+
 
 class TestMsgSizeCert(unittest.TestCase):
   def runTest(self):
-    r = checkCert('test', '10000-sans.badssl.com')
-    assert 'check' in r.keys()
-    assert r['check']     == 'cert'
-    assert len(r.keys())  == 5
-    assert r['domain']    == '10000-sans.badssl.com'
-    assert r['namespace'] == 'test'
-    assert 'excessive message size' in r['errors']
+    r = checkCert('10000-sans.badssl.com')
+    assert len(r) == 1
+    assert 'excessive message size' in r[0]
