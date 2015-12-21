@@ -42,8 +42,10 @@ def loadConfig(cfgFilename, possibleConfigFiles):
 def main(config=None, checks=None):
   if config is None:
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--config', default=None)
+    parser.add_argument('--config', default=None)
+    parser.add_argument('--checks', default=None)
     parser.add_argument('--cafile', default=None)
+    parser.add_argument('args', nargs=argparse.REMAINDER)
     args = parser.parse_args()
 
     cfgFilenames = ('kenkou.cfg', '.kenkou.cfg')
@@ -61,24 +63,36 @@ def main(config=None, checks=None):
     config['cafile'] = None
   if 'onevent' not in config:
     config['onevent'] = ['json']
-  if checks is None and 'checks' in config:
+  if 'checks' in config:
     checks = json.loads(' '.join(open(config['checks'], 'r').readlines()))
-  if checks is None:
-    print('The items to check is a required, exiting', file=sys.stderr)
+  else:
+    checks = {}
+  
+  checkItems = []
+  if len(args.args) > 0:
+    for item in args.args:
+      checkItems.append(item.lower())
+  else:
+    checkItems = checks.keys()
+
+  if len(checkItems) == 0:
+    print('No items have been given to check, exiting', file=sys.stderr)
     sys.exit(2)
 
   results = []
-  for namespace in checks.keys():
-    data = checks[namespace]
-    r = []
-    if 'cert' in data:
-      r.append(checkCert(data['cert'], config['cafile']))
-    if 'dns' in data:
-      r.append(checkDNS(**data['dns']))
-    if 'url' in data:
-      r.append(checkURL(data['url']))
+  
+  for namespace in checkItems:
+    if namespace in checks:
+      data = checks[namespace]
+      r = []
+      if 'cert' in data:
+        r.append(checkCert(data['cert'], config['cafile']))
+      if 'dns' in data:
+        r.append(checkDNS(**data['dns']))
+      if 'url' in data:
+        r.append(checkURL(data['url']))
 
-    results.append({ namespace: r })
+      results.append({ namespace: r })
 
   if 'json' in config['onevent']:
     print(json.dumps(results, indent=2))
