@@ -6,9 +6,9 @@ from __future__ import print_function
 :license: MIT, see LICENSE for more details.
 """
 
-import os, sys
+import os
+import sys
 import json
-import logging
 import argparse
 
 from .urlcheck import checkURL
@@ -79,7 +79,7 @@ def main(config=None, checks=None):
       r.append(checkURL(data['url']))
 
     results.append({ namespace: r })
-    
+
   if 'json' in config['onevent']:
     print(json.dumps(results, indent=2))
 

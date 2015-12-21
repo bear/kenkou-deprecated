@@ -4,19 +4,12 @@
 :license: MIT, see LICENSE for more details.
 """
 
-import os, sys
 import re
-import time
-import uuid
-import email
-import types
 import socket
 import datetime
 
 from OpenSSL import SSL
 from pyasn1.codec.der.decoder import decode
-from pyasn1.type.char import IA5String
-from pyasn1.type.univ import ObjectIdentifier
 from pyasn1_modules.rfc2459 import GeneralNames
 
 try:
@@ -143,7 +136,7 @@ def checkCert(domain, cafile=None):
         sock.connect((domain, 443))
         try:
           ctx = SSL.Context(SSL.TLSv1_METHOD)
-            # prevent fallback to insecure SSLv2
+          # prevent fallback to insecure SSLv2
           ctx.set_options(SSL.OP_NO_SSLv2)
           ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT,
                          pyopenssl_check_callback)

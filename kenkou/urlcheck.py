@@ -4,15 +4,13 @@
 :license: MIT, see LICENSE for more details.
 """
 
-import os, sys
 import urlparse
-
 import requests
-from bs4 import BeautifulSoup, SoupStrainer
+from bs4 import BeautifulSoup
 
 
 def hasURL(tag):
-  for item in ('href', 'cite', 'background', 'action', 'profile', 'src', 
+  for item in ('href', 'cite', 'background', 'action', 'profile', 'src',
                'longdesc', 'data', 'usemap', 'codebase', 'classid',
                'formaction', 'icon', 'manifest', 'poster'):
       if tag.has_attr(item):
@@ -21,7 +19,7 @@ def hasURL(tag):
 
 def checkMixedContent(response):
   """Search the html content for a URL for all URLs that would trigger
-     a mixed content warning. 
+     a mixed content warning.
 
      All anchor tags and link tags with rel="alternate" are skipped.
 
@@ -94,7 +92,7 @@ def checkURL(url):
                   s += '%s,' % u
               errors.append(s[:-1])
 
-  except (requests.exceptions.RequestException, 
+  except (requests.exceptions.RequestException,
           requests.exceptions.ConnectionError,
           requests.exceptions.HTTPError,
           requests.exceptions.URLRequired,

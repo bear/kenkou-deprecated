@@ -4,8 +4,6 @@
 :license: MIT, see LICENSE for more details.
 """
 
-import os, sys
-
 import dns.resolver
 import dns.message
 import dns.query
