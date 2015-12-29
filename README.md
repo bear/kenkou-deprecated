@@ -1,5 +1,14 @@
 kenkou
 ======
+
+[![Downloads](https://img.shields.io/pypi/v/kenkou.svg)](https://img.shields.io/pypi/v/kenkou.svg)
+
+[![Build Status](https://circleci.com/gh/:owner/kenkou.svg?style=shield&circle-token=427220e3ebc3fae25d8edc0683c53d1504e1bc35)](https://circleci.com/gh/:owner/kenkou.svg?style=shield&circle-token=427220e3ebc3fae25d8edc0683c53d1504e1bc35)
+
+[![Requirements Status](https://requires.io/github/bear/kenkou/requirements.svg?branch=master)](https://requires.io/github/bear/kenkou/requirements/?branch=master)
+
+[![Code Coverage](http://codecov.io/github/bear/kenkou/coverage.svg?branch=master)](http://codecov.io/github/bear/kenkou/coverage.svg?branch=master)
+
 健康 - kenkou - health
 
 A python based tool to check that a given resource is alive and valid.
